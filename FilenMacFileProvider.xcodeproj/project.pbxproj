@@ -7,37 +7,136 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2FF64E88F77CB31D0BEB2C8A /* Pods_FilenMacFileProvider.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E98457161AF6773A29F919E5 /* Pods_FilenMacFileProvider.framework */; };
+		961A6D692B14585400C747B6 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9633B9742B141AFA001F03C8 /* UniformTypeIdentifiers.framework */; };
+		961A6D752B14585400C747B6 /* FileProviderExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 961A6D682B14585400C747B6 /* FileProviderExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		961A6D7E2B14586900C747B6 /* FileProviderExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 961A6D7A2B14586900C747B6 /* FileProviderExtension.swift */; };
+		961A6D7F2B14586900C747B6 /* FileProviderUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 961A6D7B2B14586900C747B6 /* FileProviderUtils.swift */; };
+		961A6D822B14588F00C747B6 /* MMKV.swift in Sources */ = {isa = PBXBuildFile; fileRef = 961A6D812B14588F00C747B6 /* MMKV.swift */; };
 		9633B95E2B141AA6001F03C8 /* FilenMacFileProviderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9633B95D2B141AA6001F03C8 /* FilenMacFileProviderApp.swift */; };
 		9633B9602B141AA6001F03C8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9633B95F2B141AA6001F03C8 /* ContentView.swift */; };
 		9633B9622B141AA7001F03C8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9633B9612B141AA7001F03C8 /* Assets.xcassets */; };
 		9633B9652B141AA7001F03C8 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9633B9642B141AA7001F03C8 /* Preview Assets.xcassets */; };
+		9633B9BD2B14258C001F03C8 /* FilenCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9633B9BB2B14258C001F03C8 /* FilenCrypto.swift */; };
+		9633B9BF2B14258C001F03C8 /* FilenUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9633B9BC2B14258C001F03C8 /* FilenUtils.swift */; };
+		96BA5EC12B145A8D00EE9DEA /* FilenCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9633B9BB2B14258C001F03C8 /* FilenCrypto.swift */; };
+		96BA5EC22B145A8D00EE9DEA /* FilenUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9633B9BC2B14258C001F03C8 /* FilenUtils.swift */; };
+		96BA5EC52B145AD000EE9DEA /* Types.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96BA5EC42B145AD000EE9DEA /* Types.swift */; };
+		96BA5EC92B145BBD00EE9DEA /* FileProviderItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96BA5EC82B145BBD00EE9DEA /* FileProviderItem.swift */; };
+		96BA5ECD2B145C2A00EE9DEA /* FileProviderEnumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96BA5ECC2B145C2900EE9DEA /* FileProviderEnumerator.swift */; };
+		AE8FB70A14297781AD217967 /* Pods_FileProviderExt.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 876F99E16564BD5E8E84EDCB /* Pods_FileProviderExt.framework */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		961A6D732B14585400C747B6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9633B9522B141AA6001F03C8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 961A6D672B14585400C747B6;
+			remoteInfo = FileProviderExt;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		9633B9852B141AFA001F03C8 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				961A6D752B14585400C747B6 /* FileProviderExt.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		233BED0099C44EF73948B59F /* Pods-FilenMacFileProvider.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FilenMacFileProvider.release.xcconfig"; path = "Target Support Files/Pods-FilenMacFileProvider/Pods-FilenMacFileProvider.release.xcconfig"; sourceTree = "<group>"; };
+		876F99E16564BD5E8E84EDCB /* Pods_FileProviderExt.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_FileProviderExt.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		961A6D682B14585400C747B6 /* FileProviderExt.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FileProviderExt.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		961A6D712B14585400C747B6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		961A6D722B14585400C747B6 /* FileProviderExt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FileProviderExt.entitlements; sourceTree = "<group>"; };
+		961A6D7A2B14586900C747B6 /* FileProviderExtension.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FileProviderExtension.swift; sourceTree = "<group>"; };
+		961A6D7B2B14586900C747B6 /* FileProviderUtils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FileProviderUtils.swift; sourceTree = "<group>"; };
+		961A6D812B14588F00C747B6 /* MMKV.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MMKV.swift; sourceTree = "<group>"; };
 		9633B95A2B141AA6001F03C8 /* FilenMacFileProvider.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FilenMacFileProvider.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9633B95D2B141AA6001F03C8 /* FilenMacFileProviderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilenMacFileProviderApp.swift; sourceTree = "<group>"; };
 		9633B95F2B141AA6001F03C8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		9633B9612B141AA7001F03C8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9633B9642B141AA7001F03C8 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		9633B9662B141AA7001F03C8 /* FilenMacFileProvider.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FilenMacFileProvider.entitlements; sourceTree = "<group>"; };
+		9633B9742B141AFA001F03C8 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
+		9633B9BB2B14258C001F03C8 /* FilenCrypto.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FilenCrypto.swift; sourceTree = "<group>"; };
+		9633B9BC2B14258C001F03C8 /* FilenUtils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FilenUtils.swift; sourceTree = "<group>"; };
+		96BA5EC32B145ACA00EE9DEA /* FileProviderExt-Bridging-header.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "FileProviderExt-Bridging-header.h"; sourceTree = "<group>"; };
+		96BA5EC42B145AD000EE9DEA /* Types.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Types.swift; sourceTree = "<group>"; };
+		96BA5EC82B145BBD00EE9DEA /* FileProviderItem.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FileProviderItem.swift; sourceTree = "<group>"; };
+		96BA5ECC2B145C2900EE9DEA /* FileProviderEnumerator.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FileProviderEnumerator.swift; sourceTree = "<group>"; };
+		DA3A83C8A0A422D17FC3B72B /* Pods-FileProviderExt.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FileProviderExt.release.xcconfig"; path = "Target Support Files/Pods-FileProviderExt/Pods-FileProviderExt.release.xcconfig"; sourceTree = "<group>"; };
+		E51567920FCFCF4DAD14BC4B /* Pods-FilenMacFileProvider.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FilenMacFileProvider.debug.xcconfig"; path = "Target Support Files/Pods-FilenMacFileProvider/Pods-FilenMacFileProvider.debug.xcconfig"; sourceTree = "<group>"; };
+		E786A00648873065C5C73389 /* Pods-FileProviderExt.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FileProviderExt.debug.xcconfig"; path = "Target Support Files/Pods-FileProviderExt/Pods-FileProviderExt.debug.xcconfig"; sourceTree = "<group>"; };
+		E98457161AF6773A29F919E5 /* Pods_FilenMacFileProvider.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_FilenMacFileProvider.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		961A6D652B14585400C747B6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				961A6D692B14585400C747B6 /* UniformTypeIdentifiers.framework in Frameworks */,
+				AE8FB70A14297781AD217967 /* Pods_FileProviderExt.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9633B9572B141AA6001F03C8 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2FF64E88F77CB31D0BEB2C8A /* Pods_FilenMacFileProvider.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0D3B6F19AADBD5A6ACEFCEDD /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				E786A00648873065C5C73389 /* Pods-FileProviderExt.debug.xcconfig */,
+				DA3A83C8A0A422D17FC3B72B /* Pods-FileProviderExt.release.xcconfig */,
+				E51567920FCFCF4DAD14BC4B /* Pods-FilenMacFileProvider.debug.xcconfig */,
+				233BED0099C44EF73948B59F /* Pods-FilenMacFileProvider.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		961A6D6A2B14585400C747B6 /* FileProviderExt */ = {
+			isa = PBXGroup;
+			children = (
+				96BA5EC32B145ACA00EE9DEA /* FileProviderExt-Bridging-header.h */,
+				96BA5EC82B145BBD00EE9DEA /* FileProviderItem.swift */,
+				96BA5ECC2B145C2900EE9DEA /* FileProviderEnumerator.swift */,
+				961A6D7A2B14586900C747B6 /* FileProviderExtension.swift */,
+				96BA5EC42B145AD000EE9DEA /* Types.swift */,
+				961A6D7B2B14586900C747B6 /* FileProviderUtils.swift */,
+				961A6D812B14588F00C747B6 /* MMKV.swift */,
+				961A6D712B14585400C747B6 /* Info.plist */,
+				961A6D722B14585400C747B6 /* FileProviderExt.entitlements */,
+			);
+			path = FileProviderExt;
+			sourceTree = "<group>";
+		};
 		9633B9512B141AA6001F03C8 = {
 			isa = PBXGroup;
 			children = (
+				9633B9BB2B14258C001F03C8 /* FilenCrypto.swift */,
+				9633B9BC2B14258C001F03C8 /* FilenUtils.swift */,
 				9633B95C2B141AA6001F03C8 /* FilenMacFileProvider */,
+				961A6D6A2B14585400C747B6 /* FileProviderExt */,
+				9633B9732B141AFA001F03C8 /* Frameworks */,
 				9633B95B2B141AA6001F03C8 /* Products */,
+				0D3B6F19AADBD5A6ACEFCEDD /* Pods */,
 			);
 			sourceTree = "<group>";
 		};
@@ -45,6 +144,7 @@
 			isa = PBXGroup;
 			children = (
 				9633B95A2B141AA6001F03C8 /* FilenMacFileProvider.app */,
+				961A6D682B14585400C747B6 /* FileProviderExt.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -69,20 +169,52 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
+		9633B9732B141AFA001F03C8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				9633B9742B141AFA001F03C8 /* UniformTypeIdentifiers.framework */,
+				876F99E16564BD5E8E84EDCB /* Pods_FileProviderExt.framework */,
+				E98457161AF6773A29F919E5 /* Pods_FilenMacFileProvider.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		9633B9592B141AA6001F03C8 /* FilenMacFileProvider */ = {
+		961A6D672B14585400C747B6 /* FileProviderExt */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 9633B9692B141AA7001F03C8 /* Build configuration list for PBXNativeTarget "FilenMacFileProvider" */;
+			buildConfigurationList = 961A6D762B14585400C747B6 /* Build configuration list for PBXNativeTarget "FileProviderExt" */;
 			buildPhases = (
-				9633B9562B141AA6001F03C8 /* Sources */,
-				9633B9572B141AA6001F03C8 /* Frameworks */,
-				9633B9582B141AA6001F03C8 /* Resources */,
+				A14D080E413A2D1F1B8F5185 /* [CP] Check Pods Manifest.lock */,
+				961A6D642B14585400C747B6 /* Sources */,
+				961A6D652B14585400C747B6 /* Frameworks */,
+				961A6D662B14585400C747B6 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+			);
+			name = FileProviderExt;
+			productName = FileProviderExt;
+			productReference = 961A6D682B14585400C747B6 /* FileProviderExt.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		9633B9592B141AA6001F03C8 /* FilenMacFileProvider */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9633B9692B141AA7001F03C8 /* Build configuration list for PBXNativeTarget "FilenMacFileProvider" */;
+			buildPhases = (
+				D659D197CD06BB318D58C49E /* [CP] Check Pods Manifest.lock */,
+				9633B9562B141AA6001F03C8 /* Sources */,
+				9633B9572B141AA6001F03C8 /* Frameworks */,
+				9633B9582B141AA6001F03C8 /* Resources */,
+				9633B9852B141AFA001F03C8 /* Embed Foundation Extensions */,
+				732E9CD0565033F25BA50F67 /* [CP] Embed Pods Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				961A6D742B14585400C747B6 /* PBXTargetDependency */,
 			);
 			name = FilenMacFileProvider;
 			productName = FilenMacFileProvider;
@@ -99,6 +231,10 @@
 				LastSwiftUpdateCheck = 1500;
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
+					961A6D672B14585400C747B6 = {
+						CreatedOnToolsVersion = 15.0.1;
+						LastSwiftMigration = 1500;
+					};
 					9633B9592B141AA6001F03C8 = {
 						CreatedOnToolsVersion = 15.0.1;
 					};
@@ -118,11 +254,19 @@
 			projectRoot = "";
 			targets = (
 				9633B9592B141AA6001F03C8 /* FilenMacFileProvider */,
+				961A6D672B14585400C747B6 /* FileProviderExt */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		961A6D662B14585400C747B6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9633B9582B141AA6001F03C8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -134,19 +278,165 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		732E9CD0565033F25BA50F67 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-FilenMacFileProvider/Pods-FilenMacFileProvider-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-FilenMacFileProvider/Pods-FilenMacFileProvider-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-FilenMacFileProvider/Pods-FilenMacFileProvider-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		A14D080E413A2D1F1B8F5185 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-FileProviderExt-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		D659D197CD06BB318D58C49E /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-FilenMacFileProvider-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
+		961A6D642B14585400C747B6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				961A6D7E2B14586900C747B6 /* FileProviderExtension.swift in Sources */,
+				96BA5EC22B145A8D00EE9DEA /* FilenUtils.swift in Sources */,
+				96BA5EC92B145BBD00EE9DEA /* FileProviderItem.swift in Sources */,
+				96BA5EC52B145AD000EE9DEA /* Types.swift in Sources */,
+				96BA5ECD2B145C2A00EE9DEA /* FileProviderEnumerator.swift in Sources */,
+				961A6D7F2B14586900C747B6 /* FileProviderUtils.swift in Sources */,
+				96BA5EC12B145A8D00EE9DEA /* FilenCrypto.swift in Sources */,
+				961A6D822B14588F00C747B6 /* MMKV.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9633B9562B141AA6001F03C8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9633B9BD2B14258C001F03C8 /* FilenCrypto.swift in Sources */,
 				9633B9602B141AA6001F03C8 /* ContentView.swift in Sources */,
+				9633B9BF2B14258C001F03C8 /* FilenUtils.swift in Sources */,
 				9633B95E2B141AA6001F03C8 /* FilenMacFileProviderApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		961A6D742B14585400C747B6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 961A6D672B14585400C747B6 /* FileProviderExt */;
+			targetProxy = 961A6D732B14585400C747B6 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		961A6D772B14585400C747B6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E786A00648873065C5C73389 /* Pods-FileProviderExt.debug.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = FileProviderExt/FileProviderExt.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = N74E93PMQ8;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FileProviderExt/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FileProviderExt;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.filen.app.FilenMacFileProvider.FileProviderExt;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		961A6D782B14585400C747B6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DA3A83C8A0A422D17FC3B72B /* Pods-FileProviderExt.release.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = FileProviderExt/FileProviderExt.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = N74E93PMQ8;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FileProviderExt/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FileProviderExt;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.filen.app.FilenMacFileProvider.FileProviderExt;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		9633B9672B141AA7001F03C8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -267,7 +557,9 @@
 		};
 		9633B96A2B141AA7001F03C8 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E51567920FCFCF4DAD14BC4B /* Pods-FilenMacFileProvider.debug.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FilenMacFileProvider/FilenMacFileProvider.entitlements;
@@ -278,14 +570,16 @@
 				DEVELOPMENT_TEAM = N74E93PMQ8;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Filen;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.filen.hunterhan.FilenMacFileProvider;
+				PRODUCT_BUNDLE_IDENTIFIER = io.filen.app.FilenMacFileProvider;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -294,7 +588,9 @@
 		};
 		9633B96B2B141AA7001F03C8 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 233BED0099C44EF73948B59F /* Pods-FilenMacFileProvider.release.xcconfig */;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FilenMacFileProvider/FilenMacFileProvider.entitlements;
@@ -305,14 +601,16 @@
 				DEVELOPMENT_TEAM = N74E93PMQ8;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Filen;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.filen.hunterhan.FilenMacFileProvider;
+				PRODUCT_BUNDLE_IDENTIFIER = io.filen.app.FilenMacFileProvider;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -322,6 +620,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		961A6D762B14585400C747B6 /* Build configuration list for PBXNativeTarget "FileProviderExt" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				961A6D772B14585400C747B6 /* Debug */,
+				961A6D782B14585400C747B6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		9633B9552B141AA6001F03C8 /* Build configuration list for PBXProject "FilenMacFileProvider" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

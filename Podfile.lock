@@ -1,0 +1,26 @@
+PODS:
+  - Alamofire (5.8.1)
+  - OpenSSL-Universal (3.1.4000)
+  - SQLite.swift (0.14.1):
+    - SQLite.swift/standard (= 0.14.1)
+  - SQLite.swift/standard (0.14.1)
+
+DEPENDENCIES:
+  - Alamofire
+  - OpenSSL-Universal
+  - SQLite.swift (~> 0.14.0)
+
+SPEC REPOS:
+  trunk:
+    - Alamofire
+    - OpenSSL-Universal
+    - SQLite.swift
+
+SPEC CHECKSUMS:
+  Alamofire: 3ca42e259043ee0dc5c0cdd76c4bc568b8e42af7
+  OpenSSL-Universal: 0adf92f748c570f9911fdb3c11fd5f1cf304e8d1
+  SQLite.swift: 2992550ebf3c5b268bf4352603e3df87d2a4ed72
+
+PODFILE CHECKSUM: 34aaf848e1005670c322a597fba13629fbe821fc
+
+COCOAPODS: 1.14.3

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FileProvider
 
 struct ContentView: View {
     var body: some View {
@@ -14,6 +15,16 @@ struct ContentView: View {
                 .imageScale(.large)
                 .foregroundStyle(.tint)
             Text("Hello, world!")
+            Button("meow") {
+                NSFileProviderManager.add(NSFileProviderDomain(identifier: NSFileProviderDomainIdentifier("io.filen.app.FilenMacFileProvider.FileProviderExt"), displayName: "Filen"), completionHandler: { error in
+                    print(error)
+                })
+            }
+            Button("demeow") {
+                NSFileProviderManager.removeAllDomains {error in
+                    print(error)
+                }
+            }
         }
         .padding()
     }
