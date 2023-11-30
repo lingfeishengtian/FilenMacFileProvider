@@ -630,7 +630,7 @@ class FileProviderUtils {
     return result
   }
   
-  func uploadFile (url: String, parent: String) async throws -> ItemJSON {
+    func uploadFile (url: String, parent: String, with name: String? = nil) async throws -> ItemJSON {
     if (!FileManager.default.fileExists(atPath: url)) {
       throw NSFileProviderError(.noSuchItem)
     }
@@ -653,7 +653,7 @@ class FileProviderUtils {
     }
     
     let uuid = UUID().uuidString.lowercased()
-    let fileName = fileURL.lastPathComponent
+    let fileName = name ?? fileURL.lastPathComponent
     var dummyOffset = 0
     var fileChunks = 0
     let chunkSizeToUse = 1024 * 1024
@@ -1285,6 +1285,7 @@ class FileProviderUtils {
         key: itemJSON.key,
         version: itemJSON.version
       )
+        progress.completedUnitCount = Int64(index + 1)
     }
     
     return (didDownload: true, url: url)

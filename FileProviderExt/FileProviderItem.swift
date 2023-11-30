@@ -30,7 +30,7 @@ class FileProviderItem: NSObject, NSFileProviderItem {
   }
   
   var capabilities: NSFileProviderItemCapabilities {
-    [.allowsReading, .allowsWriting, .allowsRenaming, .allowsReparenting, .allowsTrashing, .allowsDeleting]
+      [.allowsReading, .allowsWriting, .allowsRenaming, .allowsReparenting, .allowsTrashing, .allowsDeleting]
   }
   
   var filename: String {
@@ -92,35 +92,35 @@ class FileProviderItem: NSObject, NSFileProviderItem {
     true
   }
   
-  var isDownloaded: Bool {
-//      autoreleasepool {
-//        if let downloading = FileProviderUtils.currentDownloads[self.item.uuid] {
-//          return !downloading
-//        }
-//        
-//        return false
+//  var isDownloaded: Bool {
+////      autoreleasepool {
+////        if let downloading = FileProviderUtils.currentDownloads[self.item.uuid] {
+////          return !downloading
+////        }
+////        
+////        return false
+////      }
+//      return false
+//  }
+  
+//  var isUploading: Bool {
+//    autoreleasepool {
+//      if let uploading = FileProviderUtils.currentUploads[self.item.uuid] {
+//        return uploading
 //      }
-      return false
-  }
-  
-  var isUploading: Bool {
-    autoreleasepool {
-      if let uploading = FileProviderUtils.currentUploads[self.item.uuid] {
-        return uploading
-      }
-      
-      return false
-    }
-  }
-  
-  var isDownloading: Bool {
-    autoreleasepool {
-        print("Cehck")
-      if let downloading = FileProviderUtils.currentDownloads[self.item.uuid] {
-        return downloading
-      }
-      
-      return false
-    }
-  }
+//      
+//      return false
+//    }
+//  }
+//  
+//  var isDownloading: Bool {
+//    autoreleasepool {
+//        print("Cehck")
+//      if let downloading = FileProviderUtils.currentDownloads[self.item.uuid] {
+//        return downloading
+//      }
+//      
+//      return false
+//    }
+//  }
 }

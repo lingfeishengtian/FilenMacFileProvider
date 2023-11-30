@@ -31,18 +31,14 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         }
         
         do {
-            print("huh?")
             let prog = Progress(totalUnitCount: Int64(itemJSON.chunks))
             Task {
                 do{
-                    print("huh?1")
                     let tempFileURL = try FileProviderUtils.shared.getTempPath().appendingPathComponent(UUID().uuidString.lowercased() + "." + identifier.rawValue, isDirectory: false)
                     
-                    let (didDown, svdURL) = try await FileProviderUtils.shared.downloadFile(uuid: itemJSON.uuid, url: tempFileURL.path, maxChunks: itemJSON.chunks, progress: prog)
-                    print(didDown)
-                    print(svdURL)
+                    let (_, svdURL) = try await FileProviderUtils.shared.downloadFile(uuid: itemJSON.uuid, url: tempFileURL.path, maxChunks: itemJSON.chunks, progress: prog)
+                    
                     let finURL = URL(filePath: svdURL)
-                    print(itemJSON.parent)
                     
                     guard let rootFolderUUID = FileProviderUtils.shared.rootFolderUUID() else {
                         completionHandler(nil, nil, NSFileProviderError(.noSuchItem))
@@ -68,35 +64,70 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                             bucket: itemJSON.bucket,
                             version: itemJSON.version
                         )), nil)
-                    prog.completedUnitCount = Int64(itemJSON.chunks)
                 }catch{
-                    print(error
-                    )
+                    print("[startProvidingItem] error:", error)
+                    
+                    completionHandler(nil, nil, NSFileProviderError(.noSuchItem))
                 }
             }
-            print("done")
-            return Progress()
-        } catch {
-          print("[startProvidingItem] error:", error)
-          
-            completionHandler(nil, nil, NSFileProviderError(.noSuchItem))
+            return prog
+        }
+    }
+    
+    func createItem(basedOn itemTemplate: NSFileProviderItem, fields: NSFileProviderItemFields, contents url: URL?, options: NSFileProviderCreateItemOptions = [], request: NSFileProviderRequest, completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {
+        if (itemTemplate.contentType == .folder) {
+            Task {
+                print("Trying create dir")
+                let item = try await createDirectory(withName: itemTemplate.filename, inParentItemIdentifier: itemTemplate.parentItemIdentifier)
+                completionHandler(item, NSFileProviderItemFields(), false, nil)
+            }
+        } else {
+            Task {
+                do {
+                    print("Trying import")
+                    let item = try await importDocument(at: url!, toParentItemIdentifier: itemTemplate.parentItemIdentifier, with: itemTemplate)
+                    completionHandler(item, NSFileProviderItemFields(), false, nil)
+                } catch {
+                    print(error)
+                    completionHandler(nil, NSFileProviderItemFields(), false, NSFileProviderError(.serverUnreachable))
+                }
+            }
         }
         
         return Progress()
     }
     
-    func createItem(basedOn itemTemplate: NSFileProviderItem, fields: NSFileProviderItemFields, contents url: URL?, options: NSFileProviderCreateItemOptions = [], request: NSFileProviderRequest, completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {
-        print("creat")
-        return Progress()
-    }
-    
     func modifyItem(_ item: NSFileProviderItem, baseVersion version: NSFileProviderItemVersion, changedFields: NSFileProviderItemFields, contents newContents: URL?, options: NSFileProviderModifyItemOptions = [], request: NSFileProviderRequest, completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {
-        print("mod")
+        print("modify some")
+        
+        if let cont = newContents {
+            itemChanged(for: item, at: cont, completionHandler: completionHandler)
+        } else {
+            completionHandler(nil, NSFileProviderItemFields(), false, NSFileProviderError(NSFileProviderError.cannotSynchronize))
+        }
+        
         return Progress()
     }
     
     func deleteItem(identifier: NSFileProviderItemIdentifier, baseVersion version: NSFileProviderItemVersion, options: NSFileProviderDeleteItemOptions = [], request: NSFileProviderRequest, completionHandler: @escaping (Error?) -> Void) -> Progress {
         print("del")
+        
+         guard let itemJSON = FileProviderUtils.shared.getItemFromUUID(uuid: identifier.rawValue) else {
+           completionHandler(NSFileProviderError(.noSuchItem))
+             return Progress()
+         }
+         
+        Task{
+            do {
+                try await FileProviderUtils.shared.deleteItem(uuid: itemJSON.uuid, type: itemJSON.type == "folder" ? .folder : .file)
+                
+                try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [itemJSON.uuid])
+                completionHandler(nil)
+            }catch {
+                completionHandler(NSFileProviderError(.serverUnreachable))
+            }
+        }
+        
         return Progress()
     }
     
@@ -141,7 +172,6 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 //  }
 
     func item(for identifier: NSFileProviderItemIdentifier, request: NSFileProviderRequest, completionHandler: @escaping (NSFileProviderItem?, Error?) -> Void) -> Progress {
-        print("meow \(identifier)")
     guard let rootFolderUUID = FileProviderUtils.shared.rootFolderUUID() else {
         completionHandler(nil, NSFileProviderError(.noSuchItem))
         return Progress()
@@ -155,8 +185,8 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 //      }
       
     completionHandler(FileProviderItem(
-        identifier: NSFileProviderItemIdentifier.rootContainer,
-        parentIdentifier: NSFileProviderItemIdentifier.rootContainer,
+        identifier: .rootContainer,
+        parentIdentifier: NSFileProviderItemIdentifier(rootFolderUUID),
         item: Item(
             uuid: rootFolderUUID,
           parent: rootFolderUUID,
@@ -175,14 +205,12 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     ), nil)
         return Progress()
     }
-        print("NOT ROOT")
     
     guard let itemJSON = FileProviderUtils.shared.getItemFromUUID(uuid: identifier.rawValue) else {
         print("wtf3")
         completionHandler(nil, NSFileProviderError(.noSuchItem))
         return Progress()
     }
-        print("\(itemJSON)")
     
         completionHandler(FileProviderItem(
       identifier: identifier,
@@ -246,129 +274,143 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 //    }
 //  }
 
-//  override func itemChanged(at url: URL) {
-//    let pathComponents = url.pathComponents
-//    let identifier = NSFileProviderItemIdentifier(pathComponents[pathComponents.count - 2])
-//    
-//    guard let itemJSON = FileProviderUtils.shared.getItemFromUUID(uuid: identifier.rawValue), FileManager.default.fileExists(atPath: url.path) else {
-//      return
-//    }
-//    
-//    guard let parentJSON = FileProviderUtils.shared.getItemFromUUID(uuid: itemJSON.parent) else {
-//      return
-//    }
-//    
-//    Task {
-//      FileProviderUtils.currentUploads[itemJSON.uuid] = true
-//      
-//      var newUUID = ""
-//      
-//      defer {
-//        FileProviderUtils.currentUploads.removeValue(forKey: itemJSON.uuid)
-//        
-//        FileProviderUtils.shared.signalEnumeratorForIdentifier(for: NSFileProviderItemIdentifier(rawValue: parentJSON.uuid))
-//      }
-//      
-//      do {
-//        let result = try await FileProviderUtils.shared.uploadFile(url: url.path, parent: parentJSON.uuid)
-//        
-//        newUUID = result.uuid
-//        
-//        try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [itemJSON.uuid])
-//        try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [newUUID])
-//        try FileProviderUtils.shared.openDb().run(
-//          "INSERT OR IGNORE INTO items (uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-//          [
-//            newUUID,
-//            parentJSON.uuid,
-//            result.name,
-//            result.type,
-//            result.mime,
-//            result.size,
-//            result.timestamp,
-//            result.lastModified,
-//            result.key,
-//            result.chunks,
-//            result.region,
-//            result.bucket,
-//            result.version
-//          ]
-//        )
-//        
-//        self.stopProvidingItem(at: url)
-//      } catch {
-//        print("[itemChanged] error: \(error)")
-//      }
-//    }
-//  }
+    func itemChanged(for item: NSFileProviderItem, at url: URL, completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) {
+        let identifier = item.itemIdentifier
+    
+    guard let itemJSON = FileProviderUtils.shared.getItemFromUUID(uuid: identifier.rawValue), FileManager.default.fileExists(atPath: url.path) else {
+      return
+    }
+    
+    guard let parentJSON = FileProviderUtils.shared.getItemFromUUID(uuid: itemJSON.parent) else {
+      return
+    }
+    
+    Task {
+      FileProviderUtils.currentUploads[itemJSON.uuid] = true
+      
+      var newUUID = ""
+      
+      defer {
+        FileProviderUtils.currentUploads.removeValue(forKey: itemJSON.uuid)
+        
+        FileProviderUtils.shared.signalEnumeratorForIdentifier(for: NSFileProviderItemIdentifier(rawValue: parentJSON.uuid))
+      }
+      
+      do {
+        let result = try await FileProviderUtils.shared.uploadFile(url: url.path, parent: parentJSON.uuid)
+        
+        newUUID = result.uuid
+        
+        try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [itemJSON.uuid])
+        try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [newUUID])
+        try FileProviderUtils.shared.openDb().run(
+          "INSERT OR IGNORE INTO items (uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [
+            newUUID,
+            parentJSON.uuid,
+            result.name,
+            result.type,
+            result.mime,
+            result.size,
+            result.timestamp,
+            result.lastModified,
+            result.key,
+            result.chunks,
+            result.region,
+            result.bucket,
+            result.version
+          ]
+        )
+        
+          completionHandler(FileProviderItem(identifier: identifier, parentIdentifier: item.parentItemIdentifier, item: Item(
+            uuid: itemJSON.uuid,
+            parent: parentJSON.uuid,
+            name: itemJSON.name,
+            type: itemJSON.type == "folder" ? .folder : .file,
+            mime: itemJSON.mime,
+            size: itemJSON.size,
+            timestamp: itemJSON.timestamp,
+            lastModified: itemJSON.lastModified,
+            key: itemJSON.key,
+            chunks: itemJSON.chunks,
+            region: itemJSON.region,
+            bucket: itemJSON.bucket,
+            version: itemJSON.version
+          )), NSFileProviderItemFields(), false, nil)
+      } catch {
+        print("[itemChanged] error: \(error)")
+          completionHandler(nil, NSFileProviderItemFields(), false, NSFileProviderError(NSFileProviderError.serverUnreachable))
+      }
+    }
+  }
 
-//  override func stopProvidingItem(at url: URL) {
-//    let pathComponents = url.pathComponents
-//    let uuid = pathComponents[pathComponents.count - 2]
-//    
-//    do {
-//      try FileManager().removeItem(at: url)
-//      
-//      try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [uuid])
-//    } catch let error {
-//        print("[stopProvidingItem] error: \(error)")
-//    }
-//  }
+  func stopProvidingItem(at url: URL) {
+    let pathComponents = url.pathComponents
+    let uuid = pathComponents[pathComponents.count - 2]
+    
+    do {
+      try FileManager().removeItem(at: url)
+      
+      try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [uuid])
+    } catch let error {
+        print("[stopProvidingItem] error: \(error)")
+    }
+  }
 
-//   func createDirectory(withName directoryName: String, inParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier) async throws -> NSFileProviderItem {
-//    do {
-//      guard let parentJSON = FileProviderUtils.shared.getItemFromUUID(uuid: parentItemIdentifier.rawValue) else {
-//        throw NSFileProviderError(.noSuchItem)
-//      }
-//      
-//      let uuid = try await FileProviderUtils.shared.createFolder(name: directoryName, parent: parentJSON.uuid)
-//      
-//      try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [uuid])
-//      try FileProviderUtils.shared.openDb().run(
-//        "INSERT OR IGNORE INTO items (uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-//        [
-//          uuid,
-//          parentJSON.uuid,
-//          directoryName,
-//          "folder",
-//          "",
-//          0,
-//          0,
-//          0,
-//          "",
-//          0,
-//          "",
-//          "",
-//          0
-//        ]
-//      )
-//      
-//      return FileProviderItem(
-//        identifier: NSFileProviderItemIdentifier(rawValue: uuid),
-//        parentIdentifier: parentItemIdentifier,
-//        item: Item(
-//          uuid: uuid,
-//          parent: parentJSON.uuid,
-//          name: directoryName,
-//          type: .folder,
-//          mime: "",
-//          size: 0,
-//          timestamp: 0,
-//          lastModified: 0,
-//          key: "",
-//          chunks: 0,
-//          region: "",
-//          bucket: "",
-//          version: 0
-//        )
-//      )
-//    } catch {
-//      print("[createDirectory] error:", error)
-//      
-//      throw error
-//    }
-//  }
-//
+   func createDirectory(withName directoryName: String, inParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier) async throws -> NSFileProviderItem {
+    do {
+      guard let parentJSON = FileProviderUtils.shared.getItemFromUUID(uuid: parentItemIdentifier.rawValue) else {
+        throw NSFileProviderError(.noSuchItem)
+      }
+      
+      let uuid = try await FileProviderUtils.shared.createFolder(name: directoryName, parent: parentJSON.uuid)
+      
+      try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [uuid])
+      try FileProviderUtils.shared.openDb().run(
+        "INSERT OR IGNORE INTO items (uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          uuid,
+          parentJSON.uuid,
+          directoryName,
+          "folder",
+          "",
+          0,
+          0,
+          0,
+          "",
+          0,
+          "",
+          "",
+          0
+        ]
+      )
+      
+      return FileProviderItem(
+        identifier: NSFileProviderItemIdentifier(rawValue: uuid),
+        parentIdentifier: parentItemIdentifier,
+        item: Item(
+          uuid: uuid,
+          parent: parentJSON.uuid,
+          name: directoryName,
+          type: .folder,
+          mime: "",
+          size: 0,
+          timestamp: 0,
+          lastModified: 0,
+          key: "",
+          chunks: 0,
+          region: "",
+          bucket: "",
+          version: 0
+        )
+      )
+    } catch {
+      print("[createDirectory] error:", error)
+      
+      throw error
+    }
+  }
+
 //    func renameItem(withIdentifier itemIdentifier: NSFileProviderItemIdentifier, toName itemName: String) async throws -> NSFileProviderItem {
 //    guard let itemJSON = FileProviderUtils.shared.getItemFromUUID(uuid: itemIdentifier.rawValue) else {
 //      throw NSFileProviderError(.noSuchItem)
@@ -566,13 +608,13 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     )
   }
 
-   func importDocument(at fileURL: URL, toParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier) async throws -> NSFileProviderItem {
+    func importDocument(at fileURL: URL, toParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier, with template: NSFileProviderItem) async throws -> NSFileProviderItem {
     guard let parentJSON = FileProviderUtils.shared.getItemFromUUID(uuid: parentItemIdentifier.rawValue) else {
       throw NSFileProviderError(.noSuchItem)
     }
     
     do {
-      let result = try await FileProviderUtils.shared.uploadFile(url: fileURL.path, parent: parentJSON.uuid)
+        let result = try await FileProviderUtils.shared.uploadFile(url: fileURL.path, parent: parentJSON.uuid, with: template.filename)
       
       try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [result.uuid])
       try FileProviderUtils.shared.openDb().run(
