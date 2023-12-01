@@ -56,8 +56,12 @@
       debugServiceExtension = "internal"
       allowLocationSimulation = "YES"
       launchAutomaticallySubstyle = "2">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
+      <RemoteRunnable
+         runnableDebuggingMode = "0"
+         BundleIdentifier = "io.filen.app.FilenMacFileProvider"
+         RemotePath = "/Users/hunterhan/Library/Developer/Xcode/DerivedData/FilenMacFileProvider-fafkbzmzglidejagpusrgwscttmt/Build/Products/Debug/FilenMacFileProvider.app">
+      </RemoteRunnable>
+      <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "9633B9592B141AA6001F03C8"
@@ -65,7 +69,7 @@
             BlueprintName = "FilenMacFileProvider"
             ReferencedContainer = "container:FilenMacFileProvider.xcodeproj">
          </BuildableReference>
-      </BuildableProductRunnable>
+      </MacroExpansion>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

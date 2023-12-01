@@ -38,6 +38,7 @@ class FileProviderUtils {
 //  private let dbPath = NSFileProviderManager.default.documentStorageURL.appendingPathComponent("db", isDirectory: true)
     public var tempPath = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.filen.app1")?.appendingPathComponent("temp", isDirectory: true)
     private let dbPath = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.filen.app1")?.appendingPathComponent("db", isDirectory: true)
+    private let downloadedPath = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.filen.app1")?.appendingPathComponent("downloaded", isDirectory: false)
   private var tempPathCreated = false
   private var dbPathCreated = false
   private var db: Connection?
@@ -70,6 +71,25 @@ class FileProviderUtils {
 //      tempPath = try? manager.temporaryDirectoryURL().appendingPathComponent("temp", isDirectory: true)
     return internalSessionManager
   }
+    
+    // VERY BAD SOLUTION JUST FOR TESTING
+//    func isDownloaded(uuid: String) -> Bool{
+//        if (!FileManager.default.fileExists(atPath: downloadedPath!.path)) {
+//            FileManager.default.createFile(atPath: downloadedPath!.path, contents: String("").data(using: .utf8))
+//            return false
+//        }
+//        
+//        do {
+//            let downloaded = try String(contentsOf: downloadedPath!)
+//            return downloaded.contains(uuid)
+//        } catch {
+//            print (error)
+//        }
+//        
+//        return false
+//    }
+    
+    
   
   func openDb () throws -> Connection {
     try autoreleasepool {
@@ -630,7 +650,7 @@ class FileProviderUtils {
     return result
   }
   
-    func uploadFile (url: String, parent: String, with name: String? = nil) async throws -> ItemJSON {
+    func uploadFile (url: String, parent: String, with name: String? = nil, progress: Progress = Progress()) async throws -> ItemJSON {
     if (!FileManager.default.fileExists(atPath: url)) {
       throw NSFileProviderError(.noSuchItem)
     }
@@ -711,8 +731,11 @@ class FileProviderUtils {
         for try await _ in group {}
       }
     }*/
+        
+    progress.totalUnitCount = Int64(fileChunks)
     
     for index in 0..<fileChunks {
+        progress.completedUnitCount = Int64(index + 1)
       let result = try await self.encryptAndUploadChunk(
         url: url,
         chunkSize: chunkSizeToUse,
@@ -1275,6 +1298,7 @@ class FileProviderUtils {
     
     let chunksToDownload = maxChunks >= itemJSON.chunks ? itemJSON.chunks : maxChunks
         
+    progress.totalUnitCount = Int64(chunksToDownload)
     for index in 0..<chunksToDownload  {
       try await self.downloadAndDecryptChunk(
         destinationURL: destinationURL,
@@ -1287,6 +1311,7 @@ class FileProviderUtils {
       )
         progress.completedUnitCount = Int64(index + 1)
     }
+        print("done \(progress.completedUnitCount) / \(progress.totalUnitCount)")
     
     return (didDownload: true, url: url)
   }

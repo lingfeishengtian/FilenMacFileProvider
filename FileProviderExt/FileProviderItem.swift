@@ -24,14 +24,34 @@ class FileProviderItem: NSObject, NSFileProviderItem {
   var itemIdentifier: NSFileProviderItemIdentifier {
     self.identifier
   }
+    
+    var lastUsedDate: Date? {
+        return self.contentModificationDate
+    }
   
   var parentItemIdentifier: NSFileProviderItemIdentifier {
     self.parentIdentifier
   }
   
   var capabilities: NSFileProviderItemCapabilities {
-      [.allowsReading, .allowsWriting, .allowsRenaming, .allowsReparenting, .allowsTrashing, .allowsDeleting]
+      if (self.contentType == .folder) {
+          return [ .allowsAddingSubItems,
+                   .allowsContentEnumerating,
+                   .allowsReading,
+                   .allowsDeleting,
+                   .allowsRenaming ]
+      } else {
+          return [ .allowsWriting,
+                   .allowsReading,
+                   .allowsDeleting,
+                   .allowsRenaming,
+                   .allowsReparenting]
+      }
   }
+    
+    var contentPolicy: NSFileProviderContentPolicy {
+        return .downloadLazilyAndEvictOnRemoteUpdate
+    }
   
   var filename: String {
     self.item.name
@@ -50,7 +70,7 @@ class FileProviderItem: NSObject, NSFileProviderItem {
   }
   
   var contentModificationDate: Date? {
-    self.item.type == .folder ? nil : Date(timeIntervalSince1970: TimeInterval(self.item.lastModified / 1000))
+    Date(timeIntervalSince1970: TimeInterval(self.item.lastModified / 1000))
   }
   
   var contentType: UTType {
@@ -85,7 +105,8 @@ class FileProviderItem: NSObject, NSFileProviderItem {
 //    nil
 //  }
     var itemVersion: NSFileProviderItemVersion {
-        return NSFileProviderItemVersion(contentVersion: Data(bytes: &item.version, count: MemoryLayout.size(ofValue: item.version)), metadataVersion: Data(bytes: &item.version, count: MemoryLayout.size(ofValue: item.version)))
+//        return NSFileProviderItemVersion(contentVersion: Data(bytes: &item.version, count: MemoryLayout.size(ofValue: item.version)), metadataVersion: Data(bytes: &item.version, count: MemoryLayout.size(ofValue: item.version)))
+        return NSFileProviderItemVersion()
     }
   
   var isMostRecentVersionDownloaded: Bool {
@@ -103,24 +124,24 @@ class FileProviderItem: NSObject, NSFileProviderItem {
 //      return false
 //  }
   
-//  var isUploading: Bool {
-//    autoreleasepool {
-//      if let uploading = FileProviderUtils.currentUploads[self.item.uuid] {
-//        return uploading
-//      }
-//      
-//      return false
-//    }
-//  }
-//  
-//  var isDownloading: Bool {
-//    autoreleasepool {
-//        print("Cehck")
-//      if let downloading = FileProviderUtils.currentDownloads[self.item.uuid] {
-//        return downloading
-//      }
-//      
-//      return false
-//    }
-//  }
+  var isUploading: Bool {
+    autoreleasepool {
+      if let uploading = FileProviderUtils.currentUploads[self.item.uuid] {
+        return uploading
+      }
+      
+      return false
+    }
+  }
+  
+  var isDownloading: Bool {
+    autoreleasepool {
+        print("Cehck")
+      if let downloading = FileProviderUtils.currentDownloads[self.item.uuid] {
+        return downloading
+      }
+      
+      return false
+    }
+  }
 }
