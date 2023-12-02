@@ -69,9 +69,11 @@ class FileProviderItem: NSObject, NSFileProviderItem {
     Date(timeIntervalSince1970: TimeInterval(self.item.timestamp))
   }
   
-  var contentModificationDate: Date? {
-    Date(timeIntervalSince1970: TimeInterval(self.item.lastModified / 1000))
-  }
+    var contentModificationDate: Date? {
+        (self.item.type == .folder) ?
+        Date(timeIntervalSince1970: TimeInterval(self.item.lastModified)) :
+        Date(timeIntervalSince1970: TimeInterval(self.item.lastModified / 1000))
+    }
   
   var contentType: UTType {
     self.item.type == .folder ? .folder : (UTType(filenameExtension: FileProviderUtils.shared.fileExtension(from: self.item.name) ?? "") ?? .data)
@@ -136,7 +138,6 @@ class FileProviderItem: NSObject, NSFileProviderItem {
   
   var isDownloading: Bool {
     autoreleasepool {
-        print("Cehck")
       if let downloading = FileProviderUtils.currentDownloads[self.item.uuid] {
         return downloading
       }
@@ -145,3 +146,4 @@ class FileProviderItem: NSObject, NSFileProviderItem {
     }
   }
 }
+

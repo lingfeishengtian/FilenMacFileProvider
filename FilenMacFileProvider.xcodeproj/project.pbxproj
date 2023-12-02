@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		2FF64E88F77CB31D0BEB2C8A /* Pods_FilenMacFileProvider.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E98457161AF6773A29F919E5 /* Pods_FilenMacFileProvider.framework */; };
 		961A6D692B14585400C747B6 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9633B9742B141AFA001F03C8 /* UniformTypeIdentifiers.framework */; };
-		961A6D752B14585400C747B6 /* FileProviderExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 961A6D682B14585400C747B6 /* FileProviderExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		961A6D7E2B14586900C747B6 /* FileProviderExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 961A6D7A2B14586900C747B6 /* FileProviderExtension.swift */; };
 		961A6D7F2B14586900C747B6 /* FileProviderUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 961A6D7B2B14586900C747B6 /* FileProviderUtils.swift */; };
 		961A6D822B14588F00C747B6 /* MMKV.swift in Sources */ = {isa = PBXBuildFile; fileRef = 961A6D812B14588F00C747B6 /* MMKV.swift */; };
@@ -19,16 +18,17 @@
 		9633B9652B141AA7001F03C8 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9633B9642B141AA7001F03C8 /* Preview Assets.xcassets */; };
 		9633B9BD2B14258C001F03C8 /* FilenCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9633B9BB2B14258C001F03C8 /* FilenCrypto.swift */; };
 		9633B9BF2B14258C001F03C8 /* FilenUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9633B9BC2B14258C001F03C8 /* FilenUtils.swift */; };
+		96A1B3A92B1B3B29005D858F /* FileProviderEnumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96A1B3A82B1B3B29005D858F /* FileProviderEnumerator.swift */; };
 		96BA5EC12B145A8D00EE9DEA /* FilenCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9633B9BB2B14258C001F03C8 /* FilenCrypto.swift */; };
 		96BA5EC22B145A8D00EE9DEA /* FilenUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9633B9BC2B14258C001F03C8 /* FilenUtils.swift */; };
 		96BA5EC52B145AD000EE9DEA /* Types.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96BA5EC42B145AD000EE9DEA /* Types.swift */; };
 		96BA5EC92B145BBD00EE9DEA /* FileProviderItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96BA5EC82B145BBD00EE9DEA /* FileProviderItem.swift */; };
-		96BA5ECD2B145C2A00EE9DEA /* FileProviderEnumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96BA5ECC2B145C2900EE9DEA /* FileProviderEnumerator.swift */; };
+		96D350F12B1B604000D2AA11 /* FileProviderExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 961A6D682B14585400C747B6 /* FileProviderExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AE8FB70A14297781AD217967 /* Pods_FileProviderExt.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 876F99E16564BD5E8E84EDCB /* Pods_FileProviderExt.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		961A6D732B14585400C747B6 /* PBXContainerItemProxy */ = {
+		96D350F22B1B604000D2AA11 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 9633B9522B141AA6001F03C8 /* Project object */;
 			proxyType = 1;
@@ -38,13 +38,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		9633B9852B141AFA001F03C8 /* Embed Foundation Extensions */ = {
+		96D350F42B1B604000D2AA11 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				961A6D752B14585400C747B6 /* FileProviderExt.appex in Embed Foundation Extensions */,
+				96D350F12B1B604000D2AA11 /* FileProviderExt.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -69,10 +69,10 @@
 		9633B9742B141AFA001F03C8 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 		9633B9BB2B14258C001F03C8 /* FilenCrypto.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FilenCrypto.swift; sourceTree = "<group>"; };
 		9633B9BC2B14258C001F03C8 /* FilenUtils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FilenUtils.swift; sourceTree = "<group>"; };
+		96A1B3A82B1B3B29005D858F /* FileProviderEnumerator.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FileProviderEnumerator.swift; sourceTree = "<group>"; };
 		96BA5EC32B145ACA00EE9DEA /* FileProviderExt-Bridging-header.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "FileProviderExt-Bridging-header.h"; sourceTree = "<group>"; };
 		96BA5EC42B145AD000EE9DEA /* Types.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Types.swift; sourceTree = "<group>"; };
 		96BA5EC82B145BBD00EE9DEA /* FileProviderItem.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FileProviderItem.swift; sourceTree = "<group>"; };
-		96BA5ECC2B145C2900EE9DEA /* FileProviderEnumerator.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FileProviderEnumerator.swift; sourceTree = "<group>"; };
 		DA3A83C8A0A422D17FC3B72B /* Pods-FileProviderExt.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FileProviderExt.release.xcconfig"; path = "Target Support Files/Pods-FileProviderExt/Pods-FileProviderExt.release.xcconfig"; sourceTree = "<group>"; };
 		E51567920FCFCF4DAD14BC4B /* Pods-FilenMacFileProvider.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FilenMacFileProvider.debug.xcconfig"; path = "Target Support Files/Pods-FilenMacFileProvider/Pods-FilenMacFileProvider.debug.xcconfig"; sourceTree = "<group>"; };
 		E786A00648873065C5C73389 /* Pods-FileProviderExt.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FileProviderExt.debug.xcconfig"; path = "Target Support Files/Pods-FileProviderExt/Pods-FileProviderExt.debug.xcconfig"; sourceTree = "<group>"; };
@@ -116,7 +116,7 @@
 			children = (
 				96BA5EC32B145ACA00EE9DEA /* FileProviderExt-Bridging-header.h */,
 				96BA5EC82B145BBD00EE9DEA /* FileProviderItem.swift */,
-				96BA5ECC2B145C2900EE9DEA /* FileProviderEnumerator.swift */,
+				96A1B3A82B1B3B29005D858F /* FileProviderEnumerator.swift */,
 				961A6D7A2B14586900C747B6 /* FileProviderExtension.swift */,
 				96BA5EC42B145AD000EE9DEA /* Types.swift */,
 				961A6D7B2B14586900C747B6 /* FileProviderUtils.swift */,
@@ -208,13 +208,13 @@
 				9633B9562B141AA6001F03C8 /* Sources */,
 				9633B9572B141AA6001F03C8 /* Frameworks */,
 				9633B9582B141AA6001F03C8 /* Resources */,
-				9633B9852B141AFA001F03C8 /* Embed Foundation Extensions */,
 				732E9CD0565033F25BA50F67 /* [CP] Embed Pods Frameworks */,
+				96D350F42B1B604000D2AA11 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				961A6D742B14585400C747B6 /* PBXTargetDependency */,
+				96D350F32B1B604000D2AA11 /* PBXTargetDependency */,
 			);
 			name = FilenMacFileProvider;
 			productName = FilenMacFileProvider;
@@ -351,7 +351,7 @@
 				96BA5EC22B145A8D00EE9DEA /* FilenUtils.swift in Sources */,
 				96BA5EC92B145BBD00EE9DEA /* FileProviderItem.swift in Sources */,
 				96BA5EC52B145AD000EE9DEA /* Types.swift in Sources */,
-				96BA5ECD2B145C2A00EE9DEA /* FileProviderEnumerator.swift in Sources */,
+				96A1B3A92B1B3B29005D858F /* FileProviderEnumerator.swift in Sources */,
 				961A6D7F2B14586900C747B6 /* FileProviderUtils.swift in Sources */,
 				96BA5EC12B145A8D00EE9DEA /* FilenCrypto.swift in Sources */,
 				961A6D822B14588F00C747B6 /* MMKV.swift in Sources */,
@@ -372,10 +372,10 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		961A6D742B14585400C747B6 /* PBXTargetDependency */ = {
+		96D350F32B1B604000D2AA11 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 961A6D672B14585400C747B6 /* FileProviderExt */;
-			targetProxy = 961A6D732B14585400C747B6 /* PBXContainerItemProxy */;
+			targetProxy = 96D350F22B1B604000D2AA11 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -559,7 +559,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = E51567920FCFCF4DAD14BC4B /* Pods-FilenMacFileProvider.debug.xcconfig */;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FilenMacFileProvider/FilenMacFileProvider.entitlements;
@@ -590,7 +589,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 233BED0099C44EF73948B59F /* Pods-FilenMacFileProvider.release.xcconfig */;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FilenMacFileProvider/FilenMacFileProvider.entitlements;

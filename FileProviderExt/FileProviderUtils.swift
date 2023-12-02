@@ -89,7 +89,18 @@ class FileProviderUtils {
 //        return false
 //    }
     
-    
+    func getIdentifierFromUUID(id: String) -> NSFileProviderItemIdentifier {
+      if let root = rootFolderUUID() {
+        if root == id || id == NSFileProviderItemIdentifier.rootContainer.rawValue {
+          return NSFileProviderItemIdentifier.rootContainer
+        } else {
+          return NSFileProviderItemIdentifier(id)
+        }
+      } else {
+        print ("Couldn't get root identifier, returning id")
+        return NSFileProviderItemIdentifier(id)
+      }
+    }
   
   func openDb () throws -> Connection {
     try autoreleasepool {
@@ -305,8 +316,14 @@ class FileProviderUtils {
     return response
   }
   
-  func getItemFromUUID (uuid: String) -> ItemJSON? {
+func getItemFromUUID (uuid id: String) -> ItemJSON? {
     guard let rootFolderUUID = self.rootFolderUUID() else { return nil }
+    var uuid = id
+
+      if (id == NSFileProviderItemIdentifier.rootContainer.rawValue) {
+        uuid = rootFolderUUID
+      }
+      
     do {
       if let row = try self.openDb().run("SELECT uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version FROM items WHERE uuid = ?", [uuid == NSFileProviderItemIdentifier.rootContainer.rawValue ? rootFolderUUID : uuid]).makeIterator().next() {
         if let uuid = row[0] as? String, let parent = row[1] as? String, let name = row[2] as? String, let type = row[3] as? String, let mime = row[4] as? String, let size = row[5] as? Int64, let timestamp = row[6] as? Int64, let lastModified = row[7] as? Int64, let key = row[8] as? String, let chunks = row[9] as? Int64, let region = row[10] as? String, let bucket = row[11] as? String, let version = row[12] as? Int64 {
@@ -335,6 +352,41 @@ class FileProviderUtils {
       return nil
     }
   }
+    
+    func getListOfItemsWithParent (uuid id: String) throws -> [ItemJSON] {
+        guard let rootFolderUUID = self.rootFolderUUID() else { return [] }
+        var uuid = id
+          
+        do {
+        let list = try self.openDb().run("SELECT uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version FROM items WHERE parent = ?", [uuid]).map({ row in
+            if let uuid = row[0] as? String, let parent = row[1] as? String, let name = row[2] as? String, let type = row[3] as? String, let mime = row[4] as? String, let size = row[5] as? Int64, let timestamp = row[6] as? Int64, let lastModified = row[7] as? Int64, let key = row[8] as? String, let chunks = row[9] as? Int64, let region = row[10] as? String, let bucket = row[11] as? String, let version = row[12] as? Int64 {
+              return ItemJSON(
+                uuid: uuid,
+                parent: parent,
+                name: name,
+                type: type,
+                mime: mime,
+                size: Int(size),
+                timestamp: Int(timestamp),
+                lastModified: Int(lastModified),
+                key: key,
+                chunks: Int(chunks),
+                region: region,
+                bucket: bucket,
+                version: Int(version)
+              )
+            } else {
+                throw NSFileProviderError(.noSuchItem)
+            }
+          })
+          
+          return list
+        } catch {
+          print("[getItemFromUUID] error: \(error)")
+          
+          return []
+        }
+      }
   
   func createFolder (name: String, parent: String) async throws -> String {
     guard let masterKeys = self.masterKeys() else {
@@ -504,14 +556,14 @@ class FileProviderUtils {
   }
   
   func moveItem (parent: String, item: ItemJSON) async throws -> Void {
-    let response: BaseAPIResponse = try await self.apiRequest(
-      endpoint: "/v3/" + item.type + "/move",
-      method: "POST",
-      body: [
-        "uuid": item.uuid,
-        "to": parent
-      ]
-    )
+      let response: BaseAPIResponse = try await self.apiRequest(
+        endpoint: "/v3/" + (item.type == "folder" ? "dir" : "file")  + "/move",
+        method: "POST",
+        body: [
+          "uuid": item.uuid,
+          "to": parent
+        ]
+      )
     
     if (!response.status) {
       throw NSFileProviderError(.serverUnreachable)
@@ -574,34 +626,44 @@ class FileProviderUtils {
     return self.getMetadata(key: "tag:" + uuid)
   }
   
-  func signalEnumeratorForIdentifier (for identifier: NSFileProviderItemIdentifier) -> Void {
-    Task {
-      do {
-        guard let rootFolderUUID = self.rootFolderUUID() else {
-          throw NSFileProviderError(.notAuthenticated)
+//  func signalEnumeratorForIdentifier (for identifier: NSFileProviderItemIdentifier) -> Void {
+//    Task {
+//      do {
+//        guard let rootFolderUUID = self.rootFolderUUID() else {
+//          throw NSFileProviderError(.notAuthenticated)
+//        }
+//
+//          currentAnchor+=1;
+//        try await manager.signalEnumerator(for: NSFileProviderItemIdentifier(rawValue: rootFolderUUID) == identifier || identifier.rawValue == NSFileProviderItemIdentifier.rootContainer.rawValue ? NSFileProviderItemIdentifier.rootContainer : identifier)
+//      } catch {
+//        print("[signalEnumeratorForIdentifier] error: \(error)")
+//      }
+//    }
+//  }
+//
+//  func signalEnumerator (for uuid: String) -> Void {
+//    Task {
+//      do {
+//        guard let rootFolderUUID = self.rootFolderUUID() else {
+//          throw NSFileProviderError(.notAuthenticated)
+//        }
+//
+//        try await manager.signalEnumerator(for: uuid == rootFolderUUID ? NSFileProviderItemIdentifier.rootContainer : NSFileProviderItemIdentifier(rawValue: uuid))
+//      } catch {
+//        print("[signalEnumerator] error: \(error)")
+//      }
+//    }
+//  }
+    
+    func signalEnumerator () -> Void {
+        Task {
+            do {
+                try await manager.signalEnumerator(for: .workingSet)
+            } catch {
+                print("[signalEnumerator] error: \(error)")
+            }
         }
-        
-          currentAnchor+=1;
-        try await manager.signalEnumerator(for: NSFileProviderItemIdentifier(rawValue: rootFolderUUID) == identifier || identifier.rawValue == NSFileProviderItemIdentifier.rootContainer.rawValue ? NSFileProviderItemIdentifier.rootContainer : identifier)
-      } catch {
-        print("[signalEnumeratorForIdentifier] error: \(error)")
-      }
     }
-  }
-  
-  func signalEnumerator (for uuid: String) -> Void {
-    Task {
-      do {
-        guard let rootFolderUUID = self.rootFolderUUID() else {
-          throw NSFileProviderError(.notAuthenticated)
-        }
-        
-        try await manager.signalEnumerator(for: uuid == rootFolderUUID ? NSFileProviderItemIdentifier.rootContainer : NSFileProviderItemIdentifier(rawValue: uuid))
-      } catch {
-        print("[signalEnumerator] error: \(error)")
-      }
-    }
-  }
   
   func uploadChunk (url: URL, fileURL: URL, checksum: String) async throws -> (region: String, bucket: String) {
       guard let apiKey = MMKVInstance.shared.getFromKey(key: "apiKey") as? String else {

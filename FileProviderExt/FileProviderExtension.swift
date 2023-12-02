@@ -34,7 +34,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                       FileProviderUtils.currentDownloads.removeValue(forKey: itemJSON.uuid)
                     }
                     
-                    FileProviderUtils.shared.signalEnumerator(for: itemJSON.parent)
+                    FileProviderUtils.shared.signalEnumerator()
                     let tempFileURL = try FileProviderUtils.shared.getTempPath().appendingPathComponent(UUID().uuidString.lowercased() + "." + identifier.rawValue, isDirectory: false)
                     
                     let (_, svdURL) = try await FileProviderUtils.shared.downloadFile(uuid: itemJSON.uuid, url: tempFileURL.path, maxChunks: itemJSON.chunks, progress: prog)
@@ -45,11 +45,10 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                         completionHandler(nil, nil, NSFileProviderError(.noSuchItem))
                         throw NSFileProviderError(.noSuchItem)
                     }
-                    let parent = rootFolderUUID == itemJSON.parent ? NSFileProviderItemIdentifier.rootContainer : NSFileProviderItemIdentifier(itemJSON.parent)
                     
                     completionHandler(finURL, FileProviderItem(
                         identifier: identifier,
-                        parentIdentifier: parent,
+                        parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: itemJSON.parent),
                         item: Item(
                             uuid: itemJSON.uuid,
                             parent: itemJSON.parent,
@@ -63,9 +62,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                             chunks: itemJSON.chunks,
                             region: itemJSON.region,
                             bucket: itemJSON.bucket,
-                            version: requestedVersion?.contentVersion.withUnsafeBytes { pointer in
-                                return pointer.load(as: Int.self)
-                            } ?? 0
+                            version: itemJSON.version
                         )), nil)
                 }catch{
                     print("[startProvidingItem] error:", error)
@@ -82,7 +79,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
             Task {
                 do {
                     print("Trying create dir")
-                    let item = try await createDirectory(withName: itemTemplate.filename, inParentItemIdentifier: itemTemplate.parentItemIdentifier)
+                    let item = try await createDirectory(with: itemTemplate, inParentItemIdentifier: itemTemplate.parentItemIdentifier)
                     completionHandler(item, NSFileProviderItemFields(), false, nil)
                 } catch {
                     completionHandler(nil, NSFileProviderItemFields(), false, nil)
@@ -94,13 +91,13 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 do {
                     print("Trying import")
                     let item = try await importDocument(at: url!, toParentItemIdentifier: itemTemplate.parentItemIdentifier, with: itemTemplate, progress: progress)
+                    FileProviderUtils.shared.signalEnumerator()
                     completionHandler(item, NSFileProviderItemFields(), false, nil)
                 } catch {
                     print(error)
                     completionHandler(nil, NSFileProviderItemFields(), false, NSFileProviderError(.serverUnreachable))
                 }
             }
-            FileProviderUtils.shared.signalEnumeratorForIdentifier(for: itemTemplate.parentItemIdentifier)
             return progress
         }
         
@@ -109,6 +106,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     
     func modifyItem(_ item: NSFileProviderItem, baseVersion version: NSFileProviderItemVersion, changedFields: NSFileProviderItemFields, contents newContents: URL?, options: NSFileProviderModifyItemOptions = [], request: NSFileProviderRequest, completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {
         print("modify some")
+        print(changedFields)
         
         if let cont = newContents {
             let prog = Progress(totalUnitCount: Int64(1))
@@ -201,13 +199,6 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
               NSLog("Could not add file provider for domain: \(error)")
               return
           }
-
-          guard let newManager = NSFileProviderManager(for: domain) else {
-              NSLog("Could not create file provider manager.")
-              return
-          }
-
-          NSLog("File provider URL: \(newManager.description)")
       }
     
     super.init()
@@ -243,7 +234,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
       
     completionHandler(FileProviderItem(
         identifier: .rootContainer,
-        parentIdentifier: NSFileProviderItemIdentifier(rootFolderUUID),
+        parentIdentifier: .rootContainer,
         item: Item(
             uuid: rootFolderUUID,
           parent: rootFolderUUID,
@@ -270,8 +261,8 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     }
     
         completionHandler(FileProviderItem(
-      identifier: identifier,
-      parentIdentifier: NSFileProviderItemIdentifier(rawValue: itemJSON.parent),
+        identifier: identifier,
+        parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: itemJSON.parent),
       item: Item(
         uuid: itemJSON.uuid,
         parent: itemJSON.parent,
@@ -350,18 +341,18 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
       defer {
         FileProviderUtils.currentUploads.removeValue(forKey: itemJSON.uuid)
         
-        FileProviderUtils.shared.signalEnumeratorForIdentifier(for: NSFileProviderItemIdentifier(rawValue: parentJSON.uuid))
+        FileProviderUtils.shared.signalEnumerator()
       }
       
       do {
-        let result = try await FileProviderUtils.shared.uploadFile(url: url.path, parent: parentJSON.uuid, progress: progress)
+          let result = try await FileProviderUtils.shared.uploadFile(url: url.path, parent: parentJSON.uuid, with: item.filename, progress: progress)
         
         newUUID = result.uuid
         
         try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [itemJSON.uuid])
         try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [newUUID])
         try FileProviderUtils.shared.openDb().run(
-          "INSERT OR IGNORE INTO items (uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT OR REPLACE INTO items (uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           [
             newUUID,
             parentJSON.uuid,
@@ -375,26 +366,27 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
             result.chunks,
             result.region,
             result.bucket,
-            item.itemVersion?.contentVersion.withUnsafeBytes { pointer in
-                return pointer.load(as: Int.self)
-            } ?? 0
+            result.version
           ]
         )
-        
-          completionHandler(FileProviderItem(identifier: identifier, parentIdentifier: item.parentItemIdentifier, item: Item(
-            uuid: itemJSON.uuid,
+          //try await FileProviderUtils.shared.manager.signalEnumerator(for: FileProviderUtils.shared.getIdentifierFromUUID(id: parentJSON.uuid))
+          completionHandler(
+            FileProviderItem(identifier: FileProviderUtils.shared.getIdentifierFromUUID(id: newUUID),
+                                             parentIdentifier: item.parentItemIdentifier,
+                                             item: Item(
+            uuid: newUUID,
             parent: parentJSON.uuid,
-            name: itemJSON.name,
-            type: itemJSON.type == "folder" ? .folder : .file,
-            mime: itemJSON.mime,
-            size: itemJSON.size,
-            timestamp: itemJSON.timestamp,
-            lastModified: itemJSON.lastModified,
-            key: itemJSON.key,
-            chunks: itemJSON.chunks,
-            region: itemJSON.region,
-            bucket: itemJSON.bucket,
-            version: itemJSON.version
+            name: result.name,
+            type: result.type == "folder" ? .folder : .file,
+            mime: result.mime,
+            size: result.size,
+            timestamp: result.timestamp,
+            lastModified: result.lastModified,
+            key: result.key,
+            chunks: result.chunks,
+            region: result.region,
+            bucket: result.bucket,
+            version: result.version
           )), NSFileProviderItemFields(), false, nil)
       } catch {
         print("[itemChanged] error: \(error)")
@@ -416,17 +408,19 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     }
   }
 
-   func createDirectory(withName directoryName: String, inParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier) async throws -> NSFileProviderItem {
+   func createDirectory(with itemTemplate: NSFileProviderItem, inParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier) async throws -> NSFileProviderItem {
     do {
+        let directoryName = itemTemplate.filename
       guard let parentJSON = FileProviderUtils.shared.getItemFromUUID(uuid: parentItemIdentifier.rawValue) else {
         throw NSFileProviderError(.noSuchItem)
       }
       
       let uuid = try await FileProviderUtils.shared.createFolder(name: directoryName, parent: parentJSON.uuid)
-      
+        let timeStamp = Int((itemTemplate.creationDate ?? Date.now)?.timeIntervalSince1970 ?? 0)
+
       try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [uuid])
       try FileProviderUtils.shared.openDb().run(
-        "INSERT OR IGNORE INTO items (uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT OR REPLACE INTO items (uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
           uuid,
           parentJSON.uuid,
@@ -434,8 +428,8 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
           "folder",
           "",
           0,
-          FilenUtils.shared.convertUnixTimestampToMs(Int(NSDate().timeIntervalSince1970)),
-          FilenUtils.shared.convertUnixTimestampToMs(Int(NSDate().timeIntervalSince1970)),
+          timeStamp,
+          timeStamp,
           "",
           0,
           "",
@@ -445,7 +439,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
       )
       
       return FileProviderItem(
-        identifier: NSFileProviderItemIdentifier(rawValue: uuid),
+        identifier: FileProviderUtils.shared.getIdentifierFromUUID(id: uuid),
         parentIdentifier: parentItemIdentifier,
         item: Item(
           uuid: uuid,
@@ -454,8 +448,8 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
           type: .folder,
           mime: "",
           size: 0,
-          timestamp: FilenUtils.shared.convertUnixTimestampToMs(Int(NSDate().timeIntervalSince1970)),
-          lastModified: FilenUtils.shared.convertUnixTimestampToMs(Int(NSDate().timeIntervalSince1970)),
+          timestamp: FilenUtils.shared.convertUnixTimestampToMs(timeStamp),
+          lastModified: FilenUtils.shared.convertUnixTimestampToMs(timeStamp),
           key: "",
           chunks: 0,
           region: "",
@@ -477,24 +471,29 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     
     if (itemJSON.type == "folder") {
       try await FileProviderUtils.shared.renameFolder(uuid: itemJSON.uuid, toName: itemName)
+        
+        try FileProviderUtils.shared.openDb().run("UPDATE items SET name = ? WHERE uuid = ?;", [
+            itemName,
+            itemJSON.uuid
+        ])
       
       return FileProviderItem(
-        identifier: NSFileProviderItemIdentifier(rawValue: itemJSON.uuid),
-        parentIdentifier: NSFileProviderItemIdentifier(rawValue: itemJSON.parent),
+        identifier: FileProviderUtils.shared.getIdentifierFromUUID(id: itemJSON.uuid),
+        parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: itemJSON.parent),
         item: Item(
           uuid: itemJSON.uuid,
           parent: itemJSON.parent,
           name: itemName,
           type: .folder,
-          mime: "",
-          size: 0,
-          timestamp: 0,
-          lastModified: 0,
-          key: "",
-          chunks: 0,
-          region: "",
-          bucket: "",
-          version: 0
+          mime: itemJSON.mime,
+          size: itemJSON.size,
+          timestamp: itemJSON.timestamp,
+          lastModified: itemJSON.lastModified,
+          key: itemJSON.key,
+          chunks: itemJSON.chunks,
+          region: itemJSON.region,
+          bucket: itemJSON.bucket,
+          version: itemJSON.version
         )
       )
     } else {
@@ -509,9 +508,14 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         )
       )
       
+        try FileProviderUtils.shared.openDb().run("UPDATE items SET name = ? WHERE uuid = ?;", [
+            itemName,
+            itemJSON.uuid
+        ])
+        
       return FileProviderItem(
-        identifier: NSFileProviderItemIdentifier(rawValue: itemJSON.uuid),
-        parentIdentifier: NSFileProviderItemIdentifier(rawValue: itemJSON.parent),
+        identifier: FileProviderUtils.shared.getIdentifierFromUUID(id: itemJSON.uuid),
+        parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: itemJSON.parent),
         item: Item(
           uuid: itemJSON.uuid,
           parent: itemJSON.parent,
@@ -590,7 +594,7 @@ func untrashItem(withIdentifier itemIdentifier: NSFileProviderItemIdentifier, to
     
     return FileProviderItem(
       identifier: itemIdentifier,
-      parentIdentifier: NSFileProviderItemIdentifier(rawValue: itemJSON.parent),
+      parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: itemJSON.parent),
       item: Item(
         uuid: itemJSON.uuid,
         parent: itemJSON.parent,
@@ -642,9 +646,7 @@ func untrashItem(withIdentifier itemIdentifier: NSFileProviderItemIdentifier, to
         itemJSON.chunks,
         itemJSON.region,
         itemJSON.bucket,
-        item.itemVersion?.contentVersion.withUnsafeBytes { pointer in
-            return pointer.load(as: Int.self)
-        } ?? 0
+        itemJSON.version
       ]
     )
     
@@ -698,7 +700,7 @@ func untrashItem(withIdentifier itemIdentifier: NSFileProviderItemIdentifier, to
       )
       
       return FileProviderItem(
-        identifier: NSFileProviderItemIdentifier(rawValue: result.uuid),
+        identifier: FileProviderUtils.shared.getIdentifierFromUUID(id: result.uuid),
         parentIdentifier: parentItemIdentifier,
         item: Item(
           uuid: result.uuid,
@@ -730,7 +732,7 @@ func untrashItem(withIdentifier itemIdentifier: NSFileProviderItemIdentifier, to
     
     let item = FileProviderItem(
       identifier: itemIdentifier,
-      parentIdentifier: NSFileProviderItemIdentifier(rawValue: itemJSON.parent),
+      parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: itemJSON.parent),
       item: Item(
         uuid: itemJSON.uuid,
         parent: itemJSON.parent,
@@ -760,7 +762,7 @@ func untrashItem(withIdentifier itemIdentifier: NSFileProviderItemIdentifier, to
     
     let item = FileProviderItem(
       identifier: itemIdentifier,
-      parentIdentifier: NSFileProviderItemIdentifier(rawValue: itemJSON.parent),
+      parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: itemJSON.parent),
       item: Item(
         uuid: itemJSON.uuid,
         parent: itemJSON.parent,
@@ -911,8 +913,14 @@ func enumerator(for containerItemIdentifier: NSFileProviderItemIdentifier, reque
 
       throw NSFileProviderError(.notAuthenticated)
     }
+//    if containerItemIdentifier.rawValue == "NSFileProviderWorkingSetContainerItemIdentifier" {
+//        throw NSFileProviderError(.noSuchItem)
+//    }
     
         print("starting")
+//    if containerItemIdentifier == .workingSet {
+//        return FileProviderEnumerator(identifier: .rootContainer)
+//    }
     return FileProviderEnumerator(identifier: containerItemIdentifier)
   }
     

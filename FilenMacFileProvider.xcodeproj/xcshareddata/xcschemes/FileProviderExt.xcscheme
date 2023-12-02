@@ -15,9 +15,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "961A6D672B14585400C747B6"
-               BuildableName = "FileProviderExt.appex"
-               BlueprintName = "FileProviderExt"
+               BlueprintIdentifier = "9633B9592B141AA6001F03C8"
+               BuildableName = "FilenMacFileProvider.app"
+               BlueprintName = "FilenMacFileProvider"
                ReferencedContainer = "container:FilenMacFileProvider.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -29,9 +29,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "9633B9592B141AA6001F03C8"
-               BuildableName = "FilenMacFileProvider.app"
-               BlueprintName = "FilenMacFileProvider"
+               BlueprintIdentifier = "961A6D672B14585400C747B6"
+               BuildableName = "FileProviderExt.appex"
+               BlueprintName = "FileProviderExt"
                ReferencedContainer = "container:FilenMacFileProvider.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>

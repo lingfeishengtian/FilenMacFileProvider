@@ -8,6 +8,8 @@
 import SwiftUI
 import FileProvider
 
+let domain = NSFileProviderDomain(identifier: NSFileProviderDomainIdentifier("io.filen.app.FilenMacFileProvider.FileProviderExt"), displayName: "Filen")
+
 struct ContentView: View {
     var body: some View {
         VStack {
@@ -15,12 +17,17 @@ struct ContentView: View {
                 .imageScale(.large)
                 .foregroundStyle(.tint)
             Text("Hello, world!")
-            Button("meow") {
-                NSFileProviderManager.add(NSFileProviderDomain(identifier: NSFileProviderDomainIdentifier("io.filen.app.FilenMacFileProvider.FileProviderExt"), displayName: "Filen"), completionHandler: { error in
+            Button("refresh") {
+                NSFileProviderManager(for: domain)!.signalEnumerator(for: NSFileProviderItemIdentifier.workingSet, completionHandler: { err in
+                    print(err)
+                })
+            }
+            Button("add provider") {
+                NSFileProviderManager.add(domain, completionHandler: { error in
                     print(error)
                 })
             }
-            Button("demeow") {
+            Button("remove all") {
                 NSFileProviderManager.removeAllDomains {error in
                     print(error)
                 }
