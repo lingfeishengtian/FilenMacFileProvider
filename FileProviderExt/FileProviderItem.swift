@@ -76,7 +76,9 @@ class FileProviderItem: NSObject, NSFileProviderItem {
     }
   
   var contentType: UTType {
-    self.item.type == .folder ? .folder : (UTType(filenameExtension: FileProviderUtils.shared.fileExtension(from: self.item.name) ?? "") ?? .data)
+          return (self.item.type == .folder) ?
+              .folder :
+          (UTType(filenameExtension: FileProviderUtils.shared.fileExtension(from: self.item.name) ?? "") ?? .content)
   }
   
 //  var favoriteRank: NSNumber? {
@@ -107,7 +109,6 @@ class FileProviderItem: NSObject, NSFileProviderItem {
 //    nil
 //  }
     var itemVersion: NSFileProviderItemVersion {
-//        return NSFileProviderItemVersion(contentVersion: Data(bytes: &item.version, count: MemoryLayout.size(ofValue: item.version)), metadataVersion: Data(bytes: &item.version, count: MemoryLayout.size(ofValue: item.version)))
         return NSFileProviderItemVersion()
     }
   

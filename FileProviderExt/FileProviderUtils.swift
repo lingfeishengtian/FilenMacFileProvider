@@ -10,6 +10,9 @@ import FileProvider
 import UniformTypeIdentifiers
 import Alamofire
 import SQLite
+#if os(iOS)
+import IkigaJSON
+#endif
 
 class FileProviderUtils {
   static let shared: FileProviderUtils = {
@@ -30,23 +33,34 @@ class FileProviderUtils {
     return currentUploads
   }()
   
-    public var currentAnchor:UInt64 = 0
+  public var currentAnchor:UInt64 = 0
+#if os(iOS)
+  public let jsonDecoder = IkigaJSONDecoder()
+  private let jsonEncoder = IkigaJSONEncoder()
+#else
   public let jsonDecoder = JSONDecoder()
   public let jsonEncoder = JSONEncoder()
-    public var managerYet: NSFileProviderManager?
-//  private let tempPath = NSFileProviderManager.default.documentStorageURL.appendingPathComponent("temp", isDirectory: true)
-//  private let dbPath = NSFileProviderManager.default.documentStorageURL.appendingPathComponent("db", isDirectory: true)
-    public var tempPath = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.filen.app1")?.appendingPathComponent("temp", isDirectory: true)
-    private let dbPath = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.filen.app1")?.appendingPathComponent("db", isDirectory: true)
-    private let downloadedPath = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.filen.app1")?.appendingPathComponent("downloaded", isDirectory: false)
+#endif
+  public var managerYet: NSFileProviderManager?
+#if os(iOS)
+  private let tempPath = NSFileProviderManager.default.documentStorageURL.appendingPathComponent("temp", isDirectory: true)
+  private let dbPath = NSFileProviderManager.default.documentStorageURL.appendingPathComponent("db", isDirectory: true)
+#else
+  public var tempPath = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.filen.app1")!.appendingPathComponent("temp", isDirectory: true)
+  private let dbPath = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.filen.app1")!.appendingPathComponent("db", isDirectory: true)
+#endif
   private var tempPathCreated = false
   private var dbPathCreated = false
   private var db: Connection?
   private var dbInitialized = false
-    
-    public var manager: NSFileProviderManager {
-        return managerYet!
-    }
+  
+  public var manager: NSFileProviderManager {
+#if os(iOS)
+    return NSFileProviderManager.default
+#else
+    return managerYet!
+#endif
+  }
   
   internal lazy var sessionConfiguration: URLSessionConfiguration = {
     let configuration = URLSessionConfiguration.af.default
@@ -68,39 +82,24 @@ class FileProviderUtils {
   }()
   
   public var sessionManager: Alamofire.Session {
-//      tempPath = try? manager.temporaryDirectoryURL().appendingPathComponent("temp", isDirectory: true)
+#if os(OSX)
+    tempPath = try! manager.temporaryDirectoryURL().appendingPathComponent("temp", isDirectory: true)
+#endif
     return internalSessionManager
   }
-    
-    // VERY BAD SOLUTION JUST FOR TESTING
-//    func isDownloaded(uuid: String) -> Bool{
-//        if (!FileManager.default.fileExists(atPath: downloadedPath!.path)) {
-//            FileManager.default.createFile(atPath: downloadedPath!.path, contents: String("").data(using: .utf8))
-//            return false
-//        }
-//        
-//        do {
-//            let downloaded = try String(contentsOf: downloadedPath!)
-//            return downloaded.contains(uuid)
-//        } catch {
-//            print (error)
-//        }
-//        
-//        return false
-//    }
-    
-    func getIdentifierFromUUID(id: String) -> NSFileProviderItemIdentifier {
-      if let root = rootFolderUUID() {
-        if root == id || id == NSFileProviderItemIdentifier.rootContainer.rawValue {
-          return NSFileProviderItemIdentifier.rootContainer
-        } else {
-          return NSFileProviderItemIdentifier(id)
-        }
+  
+  func getIdentifierFromUUID(id: String) -> NSFileProviderItemIdentifier {
+    if let root = rootFolderUUID() {
+      if root == id || id == NSFileProviderItemIdentifier.rootContainer.rawValue {
+        return NSFileProviderItemIdentifier.rootContainer
       } else {
-        print ("Couldn't get root identifier, returning id")
         return NSFileProviderItemIdentifier(id)
       }
+    } else {
+      print ("Couldn't get root identifier, returning id")
+      return NSFileProviderItemIdentifier(id)
     }
+  }
   
   func openDb () throws -> Connection {
     try autoreleasepool {
@@ -110,35 +109,35 @@ class FileProviderUtils {
       
       let dbPath = try self.getDbPath().appendingPathComponent("db_v1.sqlite3", isDirectory: false)
       
-        do{
-            self.db = try SQLite.Connection(dbPath.path, readonly: false)
-            
-            try self.db!.execute("PRAGMA journal_mode = wal")
-            try self.db!.execute("PRAGMA synchronous = normal")
-            try self.db!.execute("PRAGMA foreign_keys = off")
-            
-            try self.db!.execute("CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, uuid TEXT NOT NULL DEFAULT '', parent TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '', type TEXT NOT NULL DEFAULT '', mime TEXT NOT NULL DEFAULT '', size INTEGER NOT NULL DEFAULT 0, timestamp INTEGER NOT NULL DEFAULT 0, lastModified INTEGER NOT NULL DEFAULT 0, key TEXT NOT NULL DEFAULT '', chunks INTEGER NOT NULL DEFAULT 0, region TEXT NOT NULL DEFAULT '', bucket TEXT NOT NULL DEFAULT '', version INTEGER NOT NULL DEFAULT '')")
-            try self.db!.execute("CREATE INDEX IF NOT EXISTS uuid_index ON items (uuid)")
-            try self.db!.execute("CREATE UNIQUE INDEX IF NOT EXISTS uuid_unique ON items (uuid)")
-            
-            try self.db!.execute("CREATE TABLE IF NOT EXISTS decrypted_file_metadata (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, uuid TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '', size INTEGER NOT NULL DEFAULT 0, mime TEXT NOT NULL DEFAULT '', key TEXT NOT NULL DEFAULT '', lastModified INTEGER NOT NULL DEFAULT 0, hash TEXT NOT NULL DEFAULT '', used_metadata TEXT NOT NULL DEFAULT '')")
-            try self.db!.execute("CREATE INDEX IF NOT EXISTS uuid_index ON decrypted_file_metadata (uuid)")
-            try self.db!.execute("CREATE INDEX IF NOT EXISTS used_metadata_index ON decrypted_file_metadata (used_metadata)")
-            try self.db!.execute("CREATE UNIQUE INDEX IF NOT EXISTS uuid_unique ON decrypted_file_metadata (uuid)")
-            
-            try self.db!.execute("CREATE TABLE IF NOT EXISTS decrypted_folder_metadata (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, uuid TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '', used_metadata TEXT NOT NULL DEFAULT '')")
-            try self.db!.execute("CREATE INDEX IF NOT EXISTS uuid_index ON decrypted_folder_metadata (uuid)")
-            try self.db!.execute("CREATE INDEX IF NOT EXISTS used_metadata_index ON decrypted_folder_metadata (used_metadata)")
-            try self.db!.execute("CREATE UNIQUE INDEX IF NOT EXISTS uuid_unique ON decrypted_folder_metadata (uuid)")
-            
-            try self.db!.execute("CREATE TABLE IF NOT EXISTS metadata (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, key TEXT NOT NULL DEFAULT '', data TEXT NOT NULL DEFAULT '')")
-            try self.db!.execute("CREATE INDEX IF NOT EXISTS key_index ON metadata (key)")
-            try self.db!.execute("CREATE UNIQUE INDEX IF NOT EXISTS key_unique ON metadata (key)")
-            
-            self.dbInitialized = true
-        } catch {
-            print(error)
-        }
+      do{
+        self.db = try SQLite.Connection(dbPath.path, readonly: false)
+        
+        try self.db!.execute("PRAGMA journal_mode = wal")
+        try self.db!.execute("PRAGMA synchronous = normal")
+        try self.db!.execute("PRAGMA foreign_keys = off")
+        
+        try self.db!.execute("CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, uuid TEXT NOT NULL DEFAULT '', parent TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '', type TEXT NOT NULL DEFAULT '', mime TEXT NOT NULL DEFAULT '', size INTEGER NOT NULL DEFAULT 0, timestamp INTEGER NOT NULL DEFAULT 0, lastModified INTEGER NOT NULL DEFAULT 0, key TEXT NOT NULL DEFAULT '', chunks INTEGER NOT NULL DEFAULT 0, region TEXT NOT NULL DEFAULT '', bucket TEXT NOT NULL DEFAULT '', version INTEGER NOT NULL DEFAULT '')")
+        try self.db!.execute("CREATE INDEX IF NOT EXISTS uuid_index ON items (uuid)")
+        try self.db!.execute("CREATE UNIQUE INDEX IF NOT EXISTS uuid_unique ON items (uuid)")
+        
+        try self.db!.execute("CREATE TABLE IF NOT EXISTS decrypted_file_metadata (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, uuid TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '', size INTEGER NOT NULL DEFAULT 0, mime TEXT NOT NULL DEFAULT '', key TEXT NOT NULL DEFAULT '', lastModified INTEGER NOT NULL DEFAULT 0, hash TEXT NOT NULL DEFAULT '', used_metadata TEXT NOT NULL DEFAULT '')")
+        try self.db!.execute("CREATE INDEX IF NOT EXISTS uuid_index ON decrypted_file_metadata (uuid)")
+        try self.db!.execute("CREATE INDEX IF NOT EXISTS used_metadata_index ON decrypted_file_metadata (used_metadata)")
+        try self.db!.execute("CREATE UNIQUE INDEX IF NOT EXISTS uuid_unique ON decrypted_file_metadata (uuid)")
+        
+        try self.db!.execute("CREATE TABLE IF NOT EXISTS decrypted_folder_metadata (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, uuid TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '', used_metadata TEXT NOT NULL DEFAULT '')")
+        try self.db!.execute("CREATE INDEX IF NOT EXISTS uuid_index ON decrypted_folder_metadata (uuid)")
+        try self.db!.execute("CREATE INDEX IF NOT EXISTS used_metadata_index ON decrypted_folder_metadata (used_metadata)")
+        try self.db!.execute("CREATE UNIQUE INDEX IF NOT EXISTS uuid_unique ON decrypted_folder_metadata (uuid)")
+        
+        try self.db!.execute("CREATE TABLE IF NOT EXISTS metadata (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, key TEXT NOT NULL DEFAULT '', data TEXT NOT NULL DEFAULT '')")
+        try self.db!.execute("CREATE INDEX IF NOT EXISTS key_index ON metadata (key)")
+        try self.db!.execute("CREATE UNIQUE INDEX IF NOT EXISTS key_unique ON metadata (key)")
+        
+        self.dbInitialized = true
+      } catch {
+        print(error)
+      }
       
       return self.db!
     }
@@ -146,50 +145,59 @@ class FileProviderUtils {
   
   func getTempPath () throws -> URL {
     try autoreleasepool {
-      if self.tempPathCreated {
-          return self.tempPath!
+      if !FileManager.default.fileExists(atPath: self.tempPath.path) {
+        try FileManager.default.createDirectory(at: self.tempPath, withIntermediateDirectories: true, attributes: nil)
       }
       
-        if !FileManager.default.fileExists(atPath: self.tempPath!.path) {
-            try FileManager.default.createDirectory(at: self.tempPath!, withIntermediateDirectories: true, attributes: nil)
-      }
-      
-      self.tempPathCreated = true
-      
-        return self.tempPath!
+      return self.tempPath
     }
   }
   
   func getDbPath () throws -> URL {
     try autoreleasepool {
       if self.dbPathCreated {
-          return self.dbPath!
+        return self.dbPath
       }
       
-      if !FileManager.default.fileExists(atPath: self.dbPath!.path) {
-        try FileManager.default.createDirectory(at: self.dbPath!, withIntermediateDirectories: true, attributes: nil)
+      if !FileManager.default.fileExists(atPath: self.dbPath.path) {
+        try FileManager.default.createDirectory(at: self.dbPath, withIntermediateDirectories: true, attributes: nil)
       }
       
       self.dbPathCreated = true
       
-      return self.dbPath!
+      return self.dbPath
     }
   }
-    
   
+#if os(iOS)
   func isLoggedIn () -> Bool {
     autoreleasepool {
-        guard let loggedIn = MMKVInstance.shared.getFromKey(key: "isLoggedIn") as? Int, let apiKey = MMKVInstance.shared.getFromKey(key: "apiKey") as? String, let masterKeys = MMKVInstance.shared.getFromKey(key: "masterKeys") as? Array<String> else {
+      guard let loggedIn = MMKVInstance.shared.instance?.bool(forKey: "isLoggedIn", defaultValue: false), let apiKey = MMKVInstance.shared.instance?.string(forKey: "apiKey", defaultValue: nil), let masterKeys = MMKVInstance.shared.instance?.string(forKey: "masterKeys", defaultValue: nil) else {
+        return false
+      }
+      
+      if (!loggedIn || apiKey.count <= 0 || masterKeys.count <= 0) {
+        return false
+      }
+      
+      return true
+    }
+  }
+#else
+  func isLoggedIn () -> Bool {
+    autoreleasepool {
+      guard let loggedIn = MMKVInstance.shared.getFromKey(key: "isLoggedIn") as? Int, let apiKey = MMKVInstance.shared.getFromKey(key: "apiKey") as? String, let masterKeys = MMKVInstance.shared.getFromKey(key: "masterKeys") as? Array<String> else {
         return false
       }
       
       if (loggedIn == 0 || apiKey.count <= 0 || masterKeys.count <= 0) {
         return false
       }
-          
+      
       return true
     }
   }
+#endif
   
   func needsFaceID () -> Bool {
     autoreleasepool {
@@ -242,13 +250,52 @@ class FileProviderUtils {
       let components = name.components(separatedBy: ".")
       
       guard components.count > 1 else {
-          return nil
+        return nil
       }
       
       return components.last
     }
   }
   
+#if os(iOS)
+  func userId () -> Int {
+    autoreleasepool {
+      guard let id = MMKVInstance.shared.instance?.double(forKey: "userId", defaultValue: 0) else {
+        return 0
+      }
+      
+      return Int(id)
+    }
+  }
+  
+  func rootFolderUUID () -> String? {
+    let userIdString = String(self.userId())
+    guard let uuid =  MMKVInstance.shared.instance?.string(forKey: "defaultDriveUUID:" + userIdString, defaultValue: nil) else { return nil }
+    
+    if (uuid.count <= 0) {
+      return nil
+    }
+    
+    return uuid
+  }
+  
+  func masterKeys () -> [String]? {
+    guard let keys = MMKVInstance.shared.instance?.string(forKey: "masterKeys", defaultValue: nil) else { return nil }
+    guard let keysData = keys.data(using: .utf8) else { return nil }
+    
+    do {
+      return try self.jsonDecoder.decode([String].self, from: keysData)
+    } catch {
+      return nil
+    }
+  }
+  
+  func apiKey () -> String? {
+    guard let uuid =  MMKVInstance.shared.instance?.string(forKey: "apiKey", defaultValue: nil) else { return nil }
+    
+    return uuid
+  }
+#else
   func userId () -> Int {
     autoreleasepool {
       guard let id = MMKVInstance.shared.getFromKey(key: "userId") as? Double else {
@@ -271,20 +318,24 @@ class FileProviderUtils {
   }
   
   func masterKeys () -> [String]? {
-    guard let keys = MMKVInstance.shared.getFromKey(key: "masterKeys") as? Array<String> else { return nil }
-//    guard let keysData = keys.data(using: .utf8) else { return nil }
-      return keys
-//    do {
-//      return try self.jsonDecoder.decode([String].self, from: keysData)
-//    } catch {
-//      return nil
-//    }
+    return MMKVInstance.shared.getFromKey(key: "masterKeys") as? Array<String>
   }
   
+  func apiKey () -> String? {
+    return MMKVInstance.shared.getFromKey(key: "apiKey") as? String
+  }
+#endif
+  
   func apiRequest <T: Decodable>(endpoint: String, method: String, body: [String: Any]?) async throws -> T {
-      guard let apiKey = MMKVInstance.shared.getFromKey(key: "apiKey") as? String, let url = URL(string: "https://gateway.filen.io" + endpoint) else {
+#if os(iOS)
+    guard let apiKey = MMKVInstance.shared.instance?.string(forKey: "apiKey", defaultValue: nil), let url = URL(string: "https://gateway.filen.io" + endpoint) else {
       throw NSFileProviderError(.serverUnreachable)
     }
+#else
+    guard let apiKey = MMKVInstance.shared.getFromKey(key: "apiKey") as? String, let url = URL(string: "https://gateway.filen.io" + endpoint) else {
+      throw NSFileProviderError(.serverUnreachable)
+    }
+#endif
     
     guard let jsonString = FilenUtils.shared.orderedJSONString(from: body ?? []) else {
       throw NSFileProviderError(.serverUnreachable)
@@ -316,14 +367,14 @@ class FileProviderUtils {
     return response
   }
   
-func getItemFromUUID (uuid id: String) -> ItemJSON? {
+  func getItemFromUUID (uuid id: String) -> ItemJSON? {
     guard let rootFolderUUID = self.rootFolderUUID() else { return nil }
     var uuid = id
-
-      if (id == NSFileProviderItemIdentifier.rootContainer.rawValue) {
-        uuid = rootFolderUUID
-      }
-      
+    
+    if (id == NSFileProviderItemIdentifier.rootContainer.rawValue) {
+      uuid = rootFolderUUID
+    }
+    
     do {
       if let row = try self.openDb().run("SELECT uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version FROM items WHERE uuid = ?", [uuid == NSFileProviderItemIdentifier.rootContainer.rawValue ? rootFolderUUID : uuid]).makeIterator().next() {
         if let uuid = row[0] as? String, let parent = row[1] as? String, let name = row[2] as? String, let type = row[3] as? String, let mime = row[4] as? String, let size = row[5] as? Int64, let timestamp = row[6] as? Int64, let lastModified = row[7] as? Int64, let key = row[8] as? String, let chunks = row[9] as? Int64, let region = row[10] as? String, let bucket = row[11] as? String, let version = row[12] as? Int64 {
@@ -352,41 +403,41 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
       return nil
     }
   }
+  
+  func getListOfItemsWithParent (uuid id: String) throws -> [ItemJSON] {
+    guard let rootFolderUUID = self.rootFolderUUID() else { return [] }
+    var uuid = id
     
-    func getListOfItemsWithParent (uuid id: String) throws -> [ItemJSON] {
-        guard let rootFolderUUID = self.rootFolderUUID() else { return [] }
-        var uuid = id
-          
-        do {
-        let list = try self.openDb().run("SELECT uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version FROM items WHERE parent = ?", [uuid]).map({ row in
-            if let uuid = row[0] as? String, let parent = row[1] as? String, let name = row[2] as? String, let type = row[3] as? String, let mime = row[4] as? String, let size = row[5] as? Int64, let timestamp = row[6] as? Int64, let lastModified = row[7] as? Int64, let key = row[8] as? String, let chunks = row[9] as? Int64, let region = row[10] as? String, let bucket = row[11] as? String, let version = row[12] as? Int64 {
-              return ItemJSON(
-                uuid: uuid,
-                parent: parent,
-                name: name,
-                type: type,
-                mime: mime,
-                size: Int(size),
-                timestamp: Int(timestamp),
-                lastModified: Int(lastModified),
-                key: key,
-                chunks: Int(chunks),
-                region: region,
-                bucket: bucket,
-                version: Int(version)
-              )
-            } else {
-                throw NSFileProviderError(.noSuchItem)
-            }
-          })
-          
-          return list
-        } catch {
-          print("[getItemFromUUID] error: \(error)")
-          
-          return []
+    do {
+      let list = try self.openDb().run("SELECT uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version FROM items WHERE parent = ?", [uuid]).map({ row in
+        if let uuid = row[0] as? String, let parent = row[1] as? String, let name = row[2] as? String, let type = row[3] as? String, let mime = row[4] as? String, let size = row[5] as? Int64, let timestamp = row[6] as? Int64, let lastModified = row[7] as? Int64, let key = row[8] as? String, let chunks = row[9] as? Int64, let region = row[10] as? String, let bucket = row[11] as? String, let version = row[12] as? Int64 {
+          return ItemJSON(
+            uuid: uuid,
+            parent: parent,
+            name: name,
+            type: type,
+            mime: mime,
+            size: Int(size),
+            timestamp: Int(timestamp),
+            lastModified: Int(lastModified),
+            key: key,
+            chunks: Int(chunks),
+            region: region,
+            bucket: bucket,
+            version: Int(version)
+          )
+        } else {
+          throw NSFileProviderError(.noSuchItem)
         }
-      }
+      })
+      
+      return list
+    } catch {
+      print("[getItemFromUUID] error: \(error)")
+      
+      return []
+    }
+  }
   
   func createFolder (name: String, parent: String) async throws -> String {
     guard let masterKeys = self.masterKeys() else {
@@ -439,8 +490,8 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
     }
     
     let encryptedName = try FilenCrypto.shared.encryptFolderName(name: FolderMetadata(name: toName), masterKeys: masterKeys)
-    let nameHashed = try FilenCrypto.shared.hashFn(message: toName)
-    
+    let nameHashed = try FilenCrypto.shared.hashFn(message: toName.lowercased())
+
     let response: BaseAPIResponse = try await self.apiRequest(
       endpoint: "/v3/dir/rename",
       method: "POST",
@@ -482,8 +533,8 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
     )
     
     let encryptedName = try FilenCrypto.shared.encryptFileName(name: metadata.name, fileKey: metadata.key)
-    let nameHashed = try FilenCrypto.shared.hashFn(message: metadata.name)
-    
+    let nameHashed = try FilenCrypto.shared.hashFn(message: metadata.name.lowercased())
+
     let response: BaseAPIResponse = try await self.apiRequest(
       endpoint: "/v3/file/rename",
       method: "POST",
@@ -556,14 +607,14 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
   }
   
   func moveItem (parent: String, item: ItemJSON) async throws -> Void {
-      let response: BaseAPIResponse = try await self.apiRequest(
-        endpoint: "/v3/" + (item.type == "folder" ? "dir" : "file")  + "/move",
-        method: "POST",
-        body: [
-          "uuid": item.uuid,
-          "to": parent
-        ]
-      )
+    let response: BaseAPIResponse = try await self.apiRequest(
+      endpoint: "/v3/" + (item.type == "folder" ? "dir" : "file")  + "/move",
+      method: "POST",
+      body: [
+        "uuid": item.uuid,
+        "to": parent
+      ]
+    )
     
     if (!response.status) {
       throw NSFileProviderError(.serverUnreachable)
@@ -626,49 +677,58 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
     return self.getMetadata(key: "tag:" + uuid)
   }
   
-//  func signalEnumeratorForIdentifier (for identifier: NSFileProviderItemIdentifier) -> Void {
-//    Task {
-//      do {
-//        guard let rootFolderUUID = self.rootFolderUUID() else {
-//          throw NSFileProviderError(.notAuthenticated)
-//        }
-//
-//          currentAnchor+=1;
-//        try await manager.signalEnumerator(for: NSFileProviderItemIdentifier(rawValue: rootFolderUUID) == identifier || identifier.rawValue == NSFileProviderItemIdentifier.rootContainer.rawValue ? NSFileProviderItemIdentifier.rootContainer : identifier)
-//      } catch {
-//        print("[signalEnumeratorForIdentifier] error: \(error)")
-//      }
-//    }
-//  }
-//
-//  func signalEnumerator (for uuid: String) -> Void {
-//    Task {
-//      do {
-//        guard let rootFolderUUID = self.rootFolderUUID() else {
-//          throw NSFileProviderError(.notAuthenticated)
-//        }
-//
-//        try await manager.signalEnumerator(for: uuid == rootFolderUUID ? NSFileProviderItemIdentifier.rootContainer : NSFileProviderItemIdentifier(rawValue: uuid))
-//      } catch {
-//        print("[signalEnumerator] error: \(error)")
-//      }
-//    }
-//  }
-    
-    func signalEnumerator () -> Void {
-        Task {
-            do {
-                try await manager.signalEnumerator(for: .workingSet)
-            } catch {
-                print("[signalEnumerator] error: \(error)")
-            }
+  /// Never call with replicated storage
+  func signalEnumeratorForIdentifier (for identifier: NSFileProviderItemIdentifier) -> Void {
+    Task {
+      do {
+        guard let rootFolderUUID = self.rootFolderUUID() else {
+          throw NSFileProviderError(.notAuthenticated)
         }
+        
+        currentAnchor+=1;
+        try await manager.signalEnumerator(for: NSFileProviderItemIdentifier(rawValue: rootFolderUUID) == identifier || identifier.rawValue == NSFileProviderItemIdentifier.rootContainer.rawValue ? NSFileProviderItemIdentifier.rootContainer : identifier)
+      } catch {
+        print("[signalEnumeratorForIdentifier] error: \(error)")
+      }
     }
+  }
+  
+  /// Never call with replicated storage
+  func signalEnumerator (for uuid: String) -> Void {
+    Task {
+      do {
+        guard let rootFolderUUID = self.rootFolderUUID() else {
+          throw NSFileProviderError(.notAuthenticated)
+        }
+        
+        try await manager.signalEnumerator(for: uuid == rootFolderUUID ? NSFileProviderItemIdentifier.rootContainer : NSFileProviderItemIdentifier(rawValue: uuid))
+      } catch {
+        print("[signalEnumerator] error: \(error)")
+      }
+    }
+  }
+  
+  /// Never call with non-replicated storage
+  func signalEnumerator () -> Void {
+    Task {
+      do {
+        try await manager.signalEnumerator(for: .workingSet)
+      } catch {
+        print("[signalEnumerator] error: \(error)")
+      }
+    }
+  }
   
   func uploadChunk (url: URL, fileURL: URL, checksum: String) async throws -> (region: String, bucket: String) {
-      guard let apiKey = MMKVInstance.shared.getFromKey(key: "apiKey") as? String else {
+#if os(iOS)
+    guard let apiKey = MMKVInstance.shared.instance?.string(forKey: "apiKey", defaultValue: nil) else {
       throw NSFileProviderError(.serverUnreachable)
     }
+#else
+    guard let apiKey = MMKVInstance.shared.getFromKey(key: "apiKey") as? String else {
+      throw NSFileProviderError(.serverUnreachable)
+    }
+#endif
     
     let headers: HTTPHeaders = [
       "Authorization": "Bearer \(apiKey)",
@@ -712,7 +772,7 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
     return result
   }
   
-    func uploadFile (url: String, parent: String, with name: String? = nil, progress: Progress = Progress()) async throws -> ItemJSON {
+  func uploadFile (url: String, parent: String, with name: String? = nil, progress: Progress = Progress()) async throws -> ItemJSON {
     if (!FileManager.default.fileExists(atPath: url)) {
       throw NSFileProviderError(.noSuchItem)
     }
@@ -765,7 +825,7 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
     let uploadKey = try FilenCrypto.shared.generateRandomString(length: 32)
     let nameEnc = try FilenCrypto.shared.encryptMetadata(metadata: fileName, key: key)
     let mimeEnc = try FilenCrypto.shared.encryptMetadata(metadata: mimeType, key: key)
-    let nameHashed = try FilenCrypto.shared.hashFn(message: fileName)
+    let nameHashed = try FilenCrypto.shared.hashFn(message: fileName.lowercased())
     let sizeEnc = try FilenCrypto.shared.encryptMetadata(metadata: String(fileSize), key: key)
     let metadata = try FilenCrypto.shared.encryptMetadata(metadata: metadataJSONString, key: lastMasterKey)
     
@@ -773,31 +833,31 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
     var region = ""
     
     /*try await withThrowingTaskGroup(of: Void.self) { group in
-      for index in 0...fileChunks {
-        autoreleasepool {
-          group.addTask {
-            transferSemaphore.wait()
-            
-            defer {
-              transferSemaphore.signal()
-            }
-            
-            let result = try await self.encryptAndUploadChunk(url: url, chunkSize: chunkSizeToUse, uuid: uuid, index: index, uploadKey: uploadKey, parent: parent, key: key)
-            
-            if (result.bucket.count > 0 && result.region.count > 0) {
-              await uploadFileResult.set(bucket: result.bucket, region: result.region)
-            }
-          }
-        }
-        
-        for try await _ in group {}
-      }
-    }*/
-        
+     for index in 0...fileChunks {
+     autoreleasepool {
+     group.addTask {
+     transferSemaphore.wait()
+     
+     defer {
+     transferSemaphore.signal()
+     }
+     
+     let result = try await self.encryptAndUploadChunk(url: url, chunkSize: chunkSizeToUse, uuid: uuid, index: index, uploadKey: uploadKey, parent: parent, key: key)
+     
+     if (result.bucket.count > 0 && result.region.count > 0) {
+     await uploadFileResult.set(bucket: result.bucket, region: result.region)
+     }
+     }
+     }
+     
+     for try await _ in group {}
+     }
+     }*/
+    
     progress.totalUnitCount = Int64(fileChunks)
     
     for index in 0..<fileChunks {
-        progress.completedUnitCount = Int64(index + 1)
+      progress.completedUnitCount = Int64(index + 1)
       let result = try await self.encryptAndUploadChunk(
         url: url,
         chunkSize: chunkSizeToUse,
@@ -807,7 +867,7 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
         parent: parent,
         key: key
       )
-    
+      
       if (result.bucket.count > 0 && result.region.count > 0) {
         bucket = result.bucket
         region = result.region
@@ -1067,7 +1127,7 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
         for link in isLinkingItem.data!.links! {
           if let key = try FilenCrypto.shared.decryptFolderLinkKey(metadata: link.linkKey, masterKeys: masterKeys) {
             let encryptedMetadata = try FilenCrypto.shared.encryptMetadata(metadata: metadata, key: key)
-              
+            
             try await self.renameItemInPublicLink(
               uuid: uuid,
               linkUUID: link.linkKey,
@@ -1323,15 +1383,15 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
     if index == 0 {
       try FileManager.default.moveItem(atPath: decryptedFileURL.path, toPath: destinationURL.path)
     } else {
-        do{
-            try FilenUtils.shared.appendFile(from: decryptedFileURL, to: destinationURL)
-        }catch{
-            print(error)
-        }
+      do{
+        try FilenUtils.shared.appendFile(from: decryptedFileURL, to: destinationURL)
+      }catch{
+        print(error)
+      }
     }
   }
-
-    func downloadFile (uuid: String, url: String, maxChunks: Int, progress: Progress = Progress()) async throws -> (didDownload: Bool, url: String) {
+  
+  func downloadFile (uuid: String, url: String, maxChunks: Int, progress: Progress = Progress()) async throws -> (didDownload: Bool, url: String) {
     if (maxChunks <= 0) {
       return (didDownload: false, url: "")
     }
@@ -1340,7 +1400,7 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
       throw NSFileProviderError(.noSuchItem)
     }
     
-        let destinationBaseURL = destinationURL.deletingLastPathComponent()
+    let destinationBaseURL = destinationURL.deletingLastPathComponent()
     
     if !FileManager.default.fileExists(atPath: destinationBaseURL.path) {
       try FileManager.default.createDirectory(at: destinationBaseURL, withIntermediateDirectories: true, attributes: nil)
@@ -1354,16 +1414,83 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
           return (didDownload: false, url: url)
         }
       }
+    }
       
-      try FileManager.default.removeItem(atPath: url)
+    let tempFileURL = try self.getTempPath().appendingPathComponent(UUID().uuidString.lowercased(), isDirectory: false)
+    
+    defer {
+      do {
+        if FileManager.default.fileExists(atPath: tempFileURL.path) {
+          try FileManager.default.removeItem(at: tempFileURL)
+        }
+      } catch {
+        print(error)
+      }
     }
     
     let chunksToDownload = maxChunks >= itemJSON.chunks ? itemJSON.chunks : maxChunks
+    
+    /*let currentWriteIndex = DownloadFileCurrentWriteIndex()
+    
+    @Sendable
+    func waitForWriteSlot (index: Int) async throws -> Void {
+      let currentIndex = await currentWriteIndex.index
+      
+      if (currentIndex != index) {
+        try await Task.sleep(nanoseconds: 10_000_000)
         
-    progress.totalUnitCount = Int64(chunksToDownload)
+        return try await waitForWriteSlot(index: index)
+      }
+    }
+    
+    try await withThrowingTaskGroup(of: Void.self) { group in
+      for index in 0...chunksToDownload {
+        autoreleasepool {
+          group.addTask {
+            transferSemaphore.wait()
+            
+            defer {
+              transferSemaphore.signal()
+            }
+            
+            let chunk = await self.downloadAndDecryptChunk(
+              uuid: uuid,
+              region: itemJSON.region,
+              bucket: itemJSON.bucket,
+              index: index,
+              key: itemJSON.key,
+              version: itemJSON.version
+            )
+            
+            if let chunkData = chunk {
+              try await waitForWriteSlot(index: index)
+              
+              if (index == 0) {
+                FileManager.default.createFile(atPath: url, contents: chunkData)
+              } else {
+                let fileHandle = try FileHandle(forWritingTo: fileURL)
+                
+                fileHandle.seekToEndOfFile()
+                fileHandle.write(chunkData)
+                fileHandle.closeFile()
+              }
+            
+              await currentWriteIndex.increase()
+            } else {
+              print("[downloadFile] error: chunkData nil")
+              
+              throw NSFileProviderError(.serverUnreachable)
+            }
+          }
+        }
+        
+        for try await _ in group {}
+      }
+    }*/
+    
     for index in 0..<chunksToDownload  {
       try await self.downloadAndDecryptChunk(
-        destinationURL: destinationURL,
+        destinationURL: tempFileURL,
         uuid: uuid,
         region: itemJSON.region,
         bucket: itemJSON.bucket,
@@ -1371,9 +1498,14 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
         key: itemJSON.key,
         version: itemJSON.version
       )
-        progress.completedUnitCount = Int64(index + 1)
+      progress.completedUnitCount = Int64(index + 1)
     }
-        print("done \(progress.completedUnitCount) / \(progress.totalUnitCount)")
+    
+    if !FileManager.default.fileExists(atPath: tempFileURL.path) {
+      throw NSFileProviderError(.serverUnreachable)
+    }
+    
+    try FileManager.default.moveItem(atPath: tempFileURL.path, toPath: destinationURL.path)
     
     return (didDownload: true, url: url)
   }
@@ -1384,7 +1516,7 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
     do {
       let tempDir = try self.getTempPath()
       let files = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: [.creationDateKey], options: [])
-        
+      
       for file in files {
         if let attributes = try? FileManager.default.attributesOfItem(atPath: file.path), let creationDate = attributes[.creationDate] as? Date {
           let timeSinceCreation = Date().timeIntervalSince(creationDate)
@@ -1395,18 +1527,18 @@ func getItemFromUUID (uuid id: String) -> ItemJSON? {
         }
       }
     } catch {
-        print("[cleanupTempDir] error:", error)
+      print("[cleanupTempDir] error:", error)
     }
   }
 }
 
 struct BodyStringEncoding: ParameterEncoding {
   private let body: String
-
+  
   init (body: String) {
     self.body = body
   }
-
+  
   func encode (_ urlRequest: URLRequestConvertible, with parameters: Parameters?) throws -> URLRequest {
     guard var urlRequest = urlRequest.urlRequest else {
       throw Errors.emptyURLRequest
@@ -1432,8 +1564,8 @@ extension BodyStringEncoding {
 extension BodyStringEncoding.Errors: LocalizedError {
   var errorDescription: String? {
     switch self {
-      case .emptyURLRequest: return "Empty url request"
-      case .encodingProblem: return "Encoding problem"
+    case .emptyURLRequest: return "Empty url request"
+    case .encodingProblem: return "Encoding problem"
     }
   }
 }

@@ -15,6 +15,26 @@ class MMKVInstance {
         return instance
     }()
     
+    #if os(iOS)
+    private var mmkv: MMKV?
+    private var groupDir: String
+    
+    init() {
+      let fileManager = FileManager.default
+      let groupDir = fileManager.containerURL(forSecurityApplicationGroupIdentifier: "group.io.filen.app1")?.path
+      
+      MMKV.initialize(rootDir: nil, groupDir: groupDir!, logLevel: MMKVLogLevel.debug)
+    
+      self.mmkv = MMKV.init(mmapID: "filen_shared", cryptKey: nil, mode: MMKVMode.multiProcess)
+      self.groupDir = groupDir!
+    }
+    
+    var instance: MMKV? {
+      get {
+        return self.mmkv
+      }
+    }
+    #else
     private var groupDir: URL
     private var dbURL: URL
     
@@ -43,16 +63,16 @@ class MMKVInstance {
     }
     
     private  func hexStringFromData(input: NSData) -> String {
-            var bytes = [UInt8](repeating: 0, count: input.length)
-            input.getBytes(&bytes, length: input.length)
-            
-            var hexString = ""
-            for byte in bytes {
-                hexString += String(format:"%02x", UInt8(byte))
-            }
-            
-            return hexString
+        var bytes = [UInt8](repeating: 0, count: input.length)
+        input.getBytes(&bytes, length: input.length)
+        
+        var hexString = ""
+        for byte in bytes {
+            hexString += String(format:"%02x", UInt8(byte))
         }
+        
+        return hexString
+    }
     
     init() {
         let fileManager = FileManager.default
@@ -62,4 +82,5 @@ class MMKVInstance {
         
         self.groupDir = groupDir
     }
+    #endif
 }
