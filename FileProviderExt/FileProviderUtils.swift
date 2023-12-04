@@ -46,7 +46,6 @@ class FileProviderUtils {
   private let tempPath = NSFileProviderManager.default.documentStorageURL.appendingPathComponent("temp", isDirectory: true)
   private let dbPath = NSFileProviderManager.default.documentStorageURL.appendingPathComponent("db", isDirectory: true)
 #else
-  public var tempPath = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.filen.app1")!.appendingPathComponent("temp", isDirectory: true)
   private let dbPath = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.filen.app1")!.appendingPathComponent("db", isDirectory: true)
 #endif
   private var tempPathCreated = false
@@ -58,11 +57,11 @@ class FileProviderUtils {
 #if os(iOS)
     return NSFileProviderManager.default
 #else
-    return managerYet!
+      return managerYet ?? NSFileProviderManager(for: NSFileProviderDomain(identifier: NSFileProviderDomainIdentifier("io.filen.app.FilenMacFileProvider.FileProviderExt"), displayName: "Filen"))!
 #endif
   }
   
-  internal lazy var sessionConfiguration: URLSessionConfiguration = {
+  let sessionConfiguration: URLSessionConfiguration = {
     let configuration = URLSessionConfiguration.af.default
     configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
     configuration.urlCache = nil;
@@ -82,9 +81,6 @@ class FileProviderUtils {
   }()
   
   public var sessionManager: Alamofire.Session {
-#if os(OSX)
-    tempPath = try! manager.temporaryDirectoryURL().appendingPathComponent("temp", isDirectory: true)
-#endif
     return internalSessionManager
   }
   
@@ -145,11 +141,12 @@ class FileProviderUtils {
   
   func getTempPath () throws -> URL {
     try autoreleasepool {
-      if !FileManager.default.fileExists(atPath: self.tempPath.path) {
-        try FileManager.default.createDirectory(at: self.tempPath, withIntermediateDirectories: true, attributes: nil)
+        let tempPath = try! manager.temporaryDirectoryURL().appendingPathComponent("temp", isDirectory: true)
+      if !FileManager.default.fileExists(atPath: tempPath.path) {
+        try FileManager.default.createDirectory(at: tempPath, withIntermediateDirectories: true, attributes: nil)
       }
       
-      return self.tempPath
+      return tempPath
     }
   }
   
@@ -752,7 +749,7 @@ class FileProviderUtils {
       throw NSError(domain: "encryptAndUploadChunk", code: 1, userInfo: nil)
     }
     
-    let (_, checksum: chunkChecksum) = try FilenCrypto.shared.streamEncryptData(input: inputURL, output: fileURL, key: key, version: 2, index: index)
+      let (_, checksum: chunkChecksum) = try FilenCrypto.shared.streamEncryptData(input: inputURL, output: fileURL, key: key, version: 2, index: index)
     
     // We need to serialize it to JSON this way to ensure correct ordering of parameters
     let queryItemsJSONString = #"{"uuid":"\#(uuid.lowercased())","index":"\#(index)","uploadKey":"\#(uploadKey)","parent":"\#(parent.lowercased())","hash":"\#(chunkChecksum.lowercased())"}"#
@@ -771,11 +768,17 @@ class FileProviderUtils {
     
     return result
   }
-  
+    
+    var bucket = ""
+    var region = ""
+    let uploadSemaphore = Semaphore(max: 15)
   func uploadFile (url: String, parent: String, with name: String? = nil, progress: Progress = Progress()) async throws -> ItemJSON {
     if (!FileManager.default.fileExists(atPath: url)) {
       throw NSFileProviderError(.noSuchItem)
     }
+      
+      bucket = ""
+      region = ""
     
     guard let masterKeys = self.masterKeys(), let lastMasterKey = masterKeys.last else {
       throw NSFileProviderError(.notAuthenticated)
@@ -828,51 +831,70 @@ class FileProviderUtils {
     let nameHashed = try FilenCrypto.shared.hashFn(message: fileName.lowercased())
     let sizeEnc = try FilenCrypto.shared.encryptMetadata(metadata: String(fileSize), key: key)
     let metadata = try FilenCrypto.shared.encryptMetadata(metadata: metadataJSONString, key: lastMasterKey)
-    
-    var bucket = ""
-    var region = ""
-    
-    /*try await withThrowingTaskGroup(of: Void.self) { group in
-     for index in 0...fileChunks {
-     autoreleasepool {
-     group.addTask {
-     transferSemaphore.wait()
-     
-     defer {
-     transferSemaphore.signal()
-     }
-     
-     let result = try await self.encryptAndUploadChunk(url: url, chunkSize: chunkSizeToUse, uuid: uuid, index: index, uploadKey: uploadKey, parent: parent, key: key)
-     
-     if (result.bucket.count > 0 && result.region.count > 0) {
-     await uploadFileResult.set(bucket: result.bucket, region: result.region)
-     }
-     }
-     }
-     
-     for try await _ in group {}
-     }
-     }*/
-    
-    progress.totalUnitCount = Int64(fileChunks)
-    
-    for index in 0..<fileChunks {
-      progress.completedUnitCount = Int64(index + 1)
-      let result = try await self.encryptAndUploadChunk(
-        url: url,
-        chunkSize: chunkSizeToUse,
-        uuid: uuid,
-        index: index,
-        uploadKey: uploadKey,
-        parent: parent,
-        key: key
-      )
       
-      if (result.bucket.count > 0 && result.region.count > 0) {
-        bucket = result.bucket
-        region = result.region
+    progress.totalUnitCount = Int64(fileChunks)
+      
+//    try await withThrowingTaskGroup(of: Void.self) { group in
+//            func startTask(index: Int) {
+//                group.addTask { [self] in
+//                    try await transferSemaphore.acquire()
+//                    
+//                    defer {
+//                        transferSemaphore.release()
+//                    }
+//                    
+//                    let result = try await self.encryptAndUploadChunk(url: url, chunkSize: chunkSizeToUse, uuid: uuid, index: index, uploadKey: uploadKey, parent: parent, key: key)
+//                    progress.completedUnitCount = Int64(index + 1)
+//                    print("finished \(index)")
+//                    if (result.bucket.count > 0 && result.region.count > 0) {
+//                        //await uploadFileResult.set(bucket: result.bucket, region: result.region)
+//                        self.bucket = result.bucket
+//                        self.region = result.region
+//                    }
+//                }
+//            }
+//        
+//        for try await _ in group {}
+//        
+//     for index in 0...fileChunks {
+//         autoreleasepool {
+//         }
+//     }
+//     }
+      let localSemaphore = Semaphore(max: 15)
+      for index in 0..<fileChunks {
+          try await uploadSemaphore.acquire()
+          try await localSemaphore.acquire()
+          
+          Task {
+              defer {
+                  uploadSemaphore.release()
+                  localSemaphore.release()
+              }
+              
+              var success = false
+              while !success {
+                  do {
+                      let result = try await self.encryptAndUploadChunk(url: url, chunkSize: chunkSizeToUse, uuid: uuid, index: index, uploadKey: uploadKey, parent: parent, key: key)
+                      progress.completedUnitCount = Int64(index + 1)
+                      print("finished \(index)")
+                      if (result.bucket.count > 0 && result.region.count > 0) {
+                          //await uploadFileResult.set(bucket: result.bucket, region: result.region)
+                          self.bucket = result.bucket
+                          self.region = result.region
+                      }
+                      success = true
+                  }catch {
+                      print("Error at index \(index), retrying")
+                      print(error)
+                      try await Task.sleep(nanoseconds: 100 * 1_000_000)
+                  }
+              }
+          }
       }
-    }
+      
+      localSemaphore.setMax(newMax: 1)
+      try await localSemaphore.acquire()
     
     let done = try await self.markUploadAsDone(
       uuid: uuid,
@@ -1339,25 +1361,11 @@ class FileProviderUtils {
     }
   }
   
-  func downloadAndDecryptChunk (destinationURL: URL, uuid: String, region: String, bucket: String, index: Int, key: String, version: Int) async throws -> Void {
+    func downloadAndDecryptChunk (destinationURL: URL, uuid: String, region: String, bucket: String, index: Int, key: String, version: Int) async throws -> Void {
     guard let downloadURL = URL(string: "https://egest.filen.io/\(region)/\(bucket)/\(uuid)/\(index)") else {
       throw NSFileProviderError(.serverUnreachable)
     }
-    
-    let tempFileURL = try self.getTempPath().appendingPathComponent(UUID().uuidString.lowercased() + "." + uuid + "." + String(index), isDirectory: false)
-    
-    defer {
-      do {
-        if FileManager.default.fileExists(atPath: tempFileURL.path) {
-          try FileManager.default.removeItem(at: tempFileURL)
-        }
-      } catch {
-        print(error)
-      }
-    }
-    
     let downloadedFileURL = try await sessionManager.download(downloadURL){ $0.timeoutInterval = 3600 }.validate().serializingDownloadedFileURL().value
-    
     defer {
       do {
         if FileManager.default.fileExists(atPath: downloadedFileURL.path) {
@@ -1368,29 +1376,10 @@ class FileProviderUtils {
       }
     }
     
-    let decryptedFileURL = try FilenCrypto.shared.streamDecryptData(input: downloadedFileURL, output: tempFileURL, key: key, version: version)
-    
-    defer {
-      do {
-        if FileManager.default.fileExists(atPath: decryptedFileURL.path) {
-          try FileManager.default.removeItem(at: decryptedFileURL)
-        }
-      } catch {
-        print(error)
-      }
-    }
-    
-    if index == 0 {
-      try FileManager.default.moveItem(atPath: decryptedFileURL.path, toPath: destinationURL.path)
-    } else {
-      do{
-        try FilenUtils.shared.appendFile(from: decryptedFileURL, to: destinationURL)
-      }catch{
-        print(error)
-      }
-    }
+    let _ = try FilenCrypto.shared.streamDecryptData(input: downloadedFileURL, output: destinationURL, key: key, version: version, index: index, shouldClear: false)
   }
   
+    let downloadSemaphore = Semaphore(max: 30)
   func downloadFile (uuid: String, url: String, maxChunks: Int, progress: Progress = Progress()) async throws -> (didDownload: Bool, url: String) {
     if (maxChunks <= 0) {
       return (didDownload: false, url: "")
@@ -1428,78 +1417,52 @@ class FileProviderUtils {
       }
     }
     
-    let chunksToDownload = maxChunks >= itemJSON.chunks ? itemJSON.chunks : maxChunks
-    
-    /*let currentWriteIndex = DownloadFileCurrentWriteIndex()
-    
-    @Sendable
-    func waitForWriteSlot (index: Int) async throws -> Void {
-      let currentIndex = await currentWriteIndex.index
+    let chunksToDownload = (maxChunks >= itemJSON.chunks) ? itemJSON.chunks : maxChunks
       
-      if (currentIndex != index) {
-        try await Task.sleep(nanoseconds: 10_000_000)
-        
-        return try await waitForWriteSlot(index: index)
-      }
-    }
-    
-    try await withThrowingTaskGroup(of: Void.self) { group in
-      for index in 0...chunksToDownload {
-        autoreleasepool {
-          group.addTask {
-            transferSemaphore.wait()
-            
-            defer {
-              transferSemaphore.signal()
+          do {
+            if FileManager.default.fileExists(atPath: tempFileURL.path) {
+              try FileManager.default.removeItem(at: tempFileURL)
             }
-            
-            let chunk = await self.downloadAndDecryptChunk(
-              uuid: uuid,
-              region: itemJSON.region,
-              bucket: itemJSON.bucket,
-              index: index,
-              key: itemJSON.key,
-              version: itemJSON.version
-            )
-            
-            if let chunkData = chunk {
-              try await waitForWriteSlot(index: index)
-              
-              if (index == 0) {
-                FileManager.default.createFile(atPath: url, contents: chunkData)
-              } else {
-                let fileHandle = try FileHandle(forWritingTo: fileURL)
-                
-                fileHandle.seekToEndOfFile()
-                fileHandle.write(chunkData)
-                fileHandle.closeFile()
-              }
-            
-              await currentWriteIndex.increase()
-            } else {
-              print("[downloadFile] error: chunkData nil")
-              
-              throw NSFileProviderError(.serverUnreachable)
-            }
+          } catch {
+            print(error)
           }
-        }
-        
-        for try await _ in group {}
-      }
-    }*/
-    
+      try "".write(to: tempFileURL, atomically: true, encoding: .utf8)
+      // first get first download
+      let localSemaphore = Semaphore(max: 30)
     for index in 0..<chunksToDownload  {
-      try await self.downloadAndDecryptChunk(
-        destinationURL: tempFileURL,
-        uuid: uuid,
-        region: itemJSON.region,
-        bucket: itemJSON.bucket,
-        index: index,
-        key: itemJSON.key,
-        version: itemJSON.version
-      )
-      progress.completedUnitCount = Int64(index + 1)
+        try await downloadSemaphore.acquire()
+        try await localSemaphore.acquire()
+            
+        Task {
+            defer {
+                downloadSemaphore.release()
+                localSemaphore.release()
+            }
+            
+            var success = false
+            while !success {
+                do {
+                    try await self.downloadAndDecryptChunk(
+                        destinationURL: tempFileURL,
+                        uuid: uuid,
+                        region: itemJSON.region,
+                        bucket: itemJSON.bucket,
+                        index: index,
+                        key: itemJSON.key,
+                        version: itemJSON.version
+                    )
+                    progress.completedUnitCount = Int64(index + 1)
+                    success = true
+                }catch {
+                    print("Error at index \(index), retrying")
+                    print(error)
+                    try await Task.sleep(nanoseconds: 100 * 1_000_000)
+                }
+            }
+        }
     }
+      localSemaphore.setMax(newMax: 1)
+      try await localSemaphore.acquire()
     
     if !FileManager.default.fileExists(atPath: tempFileURL.path) {
       throw NSFileProviderError(.serverUnreachable)

@@ -8,7 +8,7 @@
 import Foundation
 
 class FilenUtils {
-  static let shared: FilenUtils = {
+  public static let shared: FilenUtils = {
     let instance = FilenUtils()
     
     return instance
@@ -100,36 +100,34 @@ class FilenUtils {
     }
   }
   
-  func appendFile (from sourceURL: URL, to targetURL: URL) throws {
+    func appendFile (from sourceURL: URL, to targetURL: URL, index: Int) throws {
     try autoreleasepool {
       guard let readStream = InputStream(fileAtPath: sourceURL.path) else {
         throw NSError(domain: "Could not open read stream", code: 1, userInfo: nil)
       }
-      
-      guard let writeStream = OutputStream(toFileAtPath: targetURL.path, append: true) else {
-        throw NSError(domain: "Could not open write stream", code: 2, userInfo: nil)
-      }
-      
+        
+        let fileHandler = try FileHandle(forWritingTo: targetURL)
+        try fileHandler.seek(toOffset: UInt64(index * 1024 * 1024))
       defer {
         readStream.close()
-        writeStream.close()
       }
 
       readStream.open()
-      writeStream.open()
+        
       
       let bufferSize = 1024
       var buffer = [UInt8](repeating: 0, count: bufferSize)
       
       while readStream.hasBytesAvailable {
-        autoreleasepool {
+        try autoreleasepool {
           let bytesRead = readStream.read(&buffer, maxLength: bufferSize)
           
           if bytesRead > 0 {
-            writeStream.write(buffer, maxLength: bytesRead)
+              try fileHandler.write(contentsOf: buffer[0..<bytesRead])
           }
         }
       }
+    try fileHandler.close()
     }
   }
   
@@ -221,6 +219,69 @@ class FilenUtils {
       return output
     }
   }
-  
-  
+}
+
+class Semaphore {
+    private var counter = 0
+    private var maxCount: Int
+    private var waiting = [CheckedContinuation<Bool, Error>]()
+    private let queue = DispatchQueue(label: "io.filen.app.semaphore.queue")
+
+    init (max: Int) {
+        self.maxCount = max
+    }
+
+    func acquire () async throws -> Void {
+        _ = try await withCheckedThrowingContinuation { continuation in
+            queue.async {
+                if self.counter < self.maxCount {
+                    self.counter += 1
+                  
+                    continuation.resume(returning: true)
+                } else {
+                    self.waiting.append(continuation)
+                }
+            }
+        }
+    }
+
+    func release () {
+        queue.async {
+            self.counter -= 1
+          
+            self.take()
+        }
+    }
+
+    private func take () {
+        if !waiting.isEmpty && counter < maxCount {
+            counter += 1
+          
+            let continuation = waiting.removeFirst()
+          
+            continuation.resume(returning: true)
+        }
+    }
+
+    func count () -> Int {
+        return counter
+    }
+
+    func setMax (newMax: Int) {
+        maxCount = newMax
+    }
+
+    func purge () -> Int {
+        let unresolved = waiting.count
+      
+        for continuation in waiting {
+            continuation.resume(throwing: NSError(domain: "Semaphore", code: 1, userInfo: [NSLocalizedDescriptionKey: "Task has been purged."]))
+        }
+      
+        counter = 0
+      
+        waiting.removeAll()
+      
+        return unresolved
+    }
 }
