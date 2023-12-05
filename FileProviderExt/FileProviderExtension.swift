@@ -175,7 +175,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     let item = try await createDirectory(filename: itemTemplate.filename, creationDate: itemTemplate.creationDate ?? nil, inParentItemIdentifier: itemTemplate.parentItemIdentifier)
                     completionHandler(item, NSFileProviderItemFields(), false, nil)
                 } catch {
-                    completionHandler(nil, NSFileProviderItemFields(), false, nil)
+                    completionHandler(nil, NSFileProviderItemFields(), false, NSFileProviderError(NSFileProviderError.serverUnreachable))
                 }
             }
         } else {
@@ -185,7 +185,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     print("Trying import")
                     let item = try await importDocument(at: url!, toParentItemIdentifier: itemTemplate.parentItemIdentifier, with: itemTemplate.filename, creationDate: itemTemplate.creationDate ?? nil, progress: progress, size: itemTemplate.documentSize ?? 0)
                     completionHandler(item, NSFileProviderItemFields(), false, nil)
-                    FileProviderUtils.shared.signalEnumerator()
+                    //await FileProviderUtils.shared.signalEnumeratorAsync()
                 } catch {
                     print(error)
                     completionHandler(nil, NSFileProviderItemFields(), false, NSFileProviderError(.serverUnreachable))
@@ -197,14 +197,20 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         return Progress()
     }
     
+    let modifySemaphore = Semaphore(max: 1)
     func modifyItem(_ item: NSFileProviderItem, baseVersion version: NSFileProviderItemVersion, changedFields: NSFileProviderItemFields, contents newContents: URL?, options: NSFileProviderModifyItemOptions = [], request: NSFileProviderRequest, completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {
         print("modify some")
         print(changedFields)
         
         if let cont = newContents {
-            let prog = Progress(totalUnitCount: Int64(1))
-            itemChanged(for: item, at: cont, completionHandler: completionHandler, progress: prog)
-            return prog
+            Task {
+                print("waiting sem")
+                try await modifySemaphore.acquire()
+                print("acquired sem")
+                let prog = Progress(totalUnitCount: Int64(1))
+                itemChanged(for: item, at: cont, completionHandler: completionHandler, progress: prog)
+                return prog
+            }
         } else {
             Task {
                 var id: NSFileProviderItem?
@@ -349,12 +355,13 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         }
         
         guard let itemJSON = FileProviderUtils.shared.getItemFromUUID(uuid: identifier.rawValue) else {
-            print("wtf3")
+            print("wtf3")        
+            print("couldnt find item \(identifier.rawValue)")
             completionHandler(nil, NSFileProviderError(.noSuchItem))
             return Progress()
         }
-        
-        completionHandler(FileProviderItem(
+        print("found item \(itemJSON.name) for \(itemJSON.uuid)")
+        let item = FileProviderItem(
             identifier: identifier,
             parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: itemJSON.parent),
             item: Item(
@@ -371,8 +378,8 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 region: itemJSON.region,
                 bucket: itemJSON.bucket,
                 version: itemJSON.version
-            )), nil
-        )
+            ))
+        completionHandler(item, nil)
         return Progress()
     }
     
@@ -380,17 +387,13 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let identifier = item.itemIdentifier
         
         guard let itemJSON = FileProviderUtils.shared.getItemFromUUID(uuid: identifier.rawValue), FileManager.default.fileExists(atPath: url.path) else {
-            return
-        }
-        
-        guard let parentJSON = FileProviderUtils.shared.getItemFromUUID(uuid: itemJSON.parent) else {
+            completionHandler(nil, NSFileProviderItemFields(), false, NSFileProviderError(.noSuchItem))
+            modifySemaphore.release()
             return
         }
         
         Task {
             FileProviderUtils.currentUploads[itemJSON.uuid] = true
-            
-            var newUUID = ""
             
             defer {
                 FileProviderUtils.currentUploads.removeValue(forKey: itemJSON.uuid)
@@ -401,48 +404,10 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
             do {
                 let newItem = try await importDocument(at: url, toParentItemIdentifier: item.parentItemIdentifier, with: item.filename, progress: progress)
                 
-                newUUID = item.itemIdentifier.rawValue
-                
                 try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [itemJSON.uuid])
-//                try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [newUUID])
-//                try FileProviderUtils.shared.openDb().run(
-//                    "INSERT OR REPLACE INTO items (uuid, parent, name, type, mime, size, timestamp, lastModified, key, chunks, region, bucket, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-//                    [
-//                        newUUID,
-//                        parentJSON.uuid,
-//                        result.name,
-//                        result.type,
-//                        result.mime,
-//                        result.size,
-//                        result.timestamp,
-//                        result.lastModified,
-//                        result.key,
-//                        result.chunks,
-//                        result.region,
-//                        result.bucket,
-//                        result.version
-//                    ]
-//                )
-                //try await FileProviderUtils.shared.manager.signalEnumerator(for: FileProviderUtils.shared.getIdentifierFromUUID(id: parentJSON.uuid))
-//                completionHandler(
-//                    FileProviderItem(identifier: FileProviderUtils.shared.getIdentifierFromUUID(id: newUUID),
-//                                     parentIdentifier: item.parentItemIdentifier,
-//                                     item: Item(
-//                                        uuid: newUUID,
-//                                        parent: parentJSON.uuid,
-//                                        name: result.name,
-//                                        type: result.type == "folder" ? .folder : .file,
-//                                        mime: result.mime,
-//                                        size: result.size,
-//                                        timestamp: result.timestamp,
-//                                        lastModified: result.lastModified,
-//                                        key: result.key,
-//                                        chunks: result.chunks,
-//                                        region: result.region,
-//                                        bucket: result.bucket,
-//                                        version: result.version
-//                                     )), NSFileProviderItemFields(), false, nil)
-                completionHandler(nil, NSFileProviderItemFields(), false, nil)
+                completionHandler(newItem, NSFileProviderItemFields(), false, nil)
+                modifySemaphore.release()
+                print("release sem")
             } catch {
                 print("[itemChanged] error: \(error)")
                 completionHandler(nil, NSFileProviderItemFields(), false, NSFileProviderError(NSFileProviderError.serverUnreachable))
@@ -463,7 +428,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         }
     }
     
-    func createDirectory(filename: String, creationDate: Date?, inParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier) async throws -> NSFileProviderItem {
+    func createDirectory(filename: String, creationDate: Date?, inParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier, isBundle: Bool = false) async throws -> NSFileProviderItem {
         do {
             let directoryName = filename
             guard let parentJSON = FileProviderUtils.shared.getItemFromUUID(uuid: parentItemIdentifier.rawValue) else {
@@ -480,7 +445,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     uuid,
                     parentJSON.uuid,
                     directoryName,
-                    "folder",
+                    isBundle ? "file" : "folder",
                     "",
                     0,
                     timeStamp,
@@ -500,7 +465,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     uuid: uuid,
                     parent: parentJSON.uuid,
                     name: directoryName,
-                    type: .folder,
+                    type: isBundle ? .file : .folder,
                     mime: "",
                     size: 0,
                     timestamp: FilenUtils.shared.convertUnixTimestampToMs(timeStamp),
@@ -726,14 +691,14 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         )
     }
     
-    func importDocument(at fileURL: URL, toParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier, with filename: String, creationDate: Date? = nil, progress: Progress = Progress(), size: NSNumber? = nil) async throws -> NSFileProviderItem {
+    func importDocument(at fileURL: URL, toParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier, with filename: String, creationDate: Date? = nil, progress: Progress = Progress(), size: NSNumber? = nil, type: String? = nil) async throws -> NSFileProviderItem {
         guard let parentJSON = FileProviderUtils.shared.getItemFromUUID(uuid: parentItemIdentifier.rawValue) else {
             throw NSFileProviderError(.noSuchItem)
         }
         do {
             if fileURL.isDirectory {
                 let dirContents = try FileManager.default.contentsOfDirectory(atPath: fileURL.path)
-                let fProvItem = try await createDirectory(filename: filename, creationDate: nil, inParentItemIdentifier: parentItemIdentifier)
+                let fProvItem = try await createDirectory(filename: filename, creationDate: nil, inParentItemIdentifier: parentItemIdentifier, isBundle: true)
                 progress.totalUnitCount = Int64(dirContents.count)
                 for name in dirContents {
 //                    Task {
@@ -741,6 +706,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                         progress.completedUnitCount += 1
 //                    }
                 }
+                print ("\(fProvItem.filename) has \(fProvItem.itemIdentifier.rawValue)")
                 
                 return fProvItem
             }
@@ -753,6 +719,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     result.uuid,
                     parentJSON.uuid,
                     result.name,
+                    //type ?? result.type,
                     result.type,
                     result.mime,
                     result.size,
@@ -773,7 +740,8 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     uuid: result.uuid,
                     parent: parentJSON.uuid,
                     name: result.name,
-                    type: result.type == "folder" ? .folder : .file,
+                    //type: ((type ?? result.type) == "folder") ? .folder : .file,
+                    type: .folder,
                     mime: result.mime,
                     size: result.size,
                     timestamp: result.timestamp,

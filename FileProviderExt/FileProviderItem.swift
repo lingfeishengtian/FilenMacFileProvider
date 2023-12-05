@@ -49,6 +49,18 @@ class FileProviderItem: NSObject, NSFileProviderItem {
       }
   }
     
+    var fileSystemFlags: NSFileProviderFileSystemFlags {
+        var fsflags = [
+            NSFileProviderFileSystemFlags.userReadable,
+            .userWritable
+            ]
+        let type = UTType(tag: FileProviderUtils.shared.fileExtension(from: self.item.name) ?? "", tagClass: .filenameExtension, conformingTo: nil)
+        if type?.conforms(to: .directory) ?? false && type?.conforms(to: .package) ?? false {
+            fsflags.append(.userExecutable)
+        }
+        return NSFileProviderFileSystemFlags(fsflags)
+    }
+    
     var contentPolicy: NSFileProviderContentPolicy {
         return .downloadLazilyAndEvictOnRemoteUpdate
     }
@@ -76,9 +88,14 @@ class FileProviderItem: NSObject, NSFileProviderItem {
     }
   
   var contentType: UTType {
+      let type = UTType(tag: FileProviderUtils.shared.fileExtension(from: self.item.name) ?? "", tagClass: .filenameExtension, conformingTo: nil)
+      if type?.conforms(to: .directory) ?? false && type?.conforms(to: .package) ?? false {
+          return type!
+      }
           return (self.item.type == .folder) ?
-        (UTType(tag: FileProviderUtils.shared.fileExtension(from: self.item.name) ?? "", tagClass: .filenameExtension, conformingTo: .package) ?? .folder) :
-          (UTType(filenameExtension: FileProviderUtils.shared.fileExtension(from: self.item.name) ?? "") ?? .content)
+        //(UTType(tag: FileProviderUtils.shared.fileExtension(from: self.item.name) ?? "", tagClass: .filenameExtension, conformingTo: .package) ?? .folder) :
+          .folder :
+      (UTType(tag: FileProviderUtils.shared.fileExtension(from: self.item.name) ?? "", tagClass: .filenameExtension, conformingTo: nil)) ?? .content
   }
   
 //  var favoriteRank: NSNumber? {

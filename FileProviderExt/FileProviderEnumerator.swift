@@ -255,6 +255,7 @@ class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
                             }
                         }
                         let processed = try self.processFile(file: file, masterKeys: masterKeys)
+                        print("processing \(processed.filename)")
                         if (processed.item.name.count > 0) {
                             observer.didUpdate([processed])
                             
@@ -265,11 +266,12 @@ class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
                         if let child = kids.first(where: { $0.uuid == folder.uuid }) {
                             kids.removeAll(where: { $0.uuid == folder.uuid })
                             
-                            if (child.timestamp != folder.timestamp) {
+                            if (child.timestamp == folder.timestamp) {
                                 return false
                             }
                         }
                         let processed = try self.processFolder(folder: folder, masterKeys: masterKeys)
+                        print("processing \(processed.filename)")
                         
                         if (processed.item.name.count > 0) {
                             observer.didUpdate([processed])

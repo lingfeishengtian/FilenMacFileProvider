@@ -34,6 +34,7 @@ class FileProviderUtils {
     }()
     
     static var folderUpdateQueue = [NSFileProviderItemIdentifier]()
+    //static var mustUpdateOnNextEnumeration = [NSFileProviderItemIdentifier]()
     
     public var currentAnchor:UInt64 = 0
 #if os(iOS)
@@ -715,6 +716,14 @@ class FileProviderUtils {
             } catch {
                 print("[signalEnumerator] error: \(error)")
             }
+        }
+    }
+    
+    func signalEnumeratorAsync () async -> Void {
+        do {
+            try await manager.signalEnumerator(for: .workingSet)
+        } catch {
+            print("[signalEnumerator] error: \(error)")
         }
     }
     
