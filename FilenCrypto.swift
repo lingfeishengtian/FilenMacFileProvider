@@ -482,7 +482,7 @@ class FilenCrypto {
                 if let ind = index{
                     try outputHandler.seek(toOffset: UInt64(ind * 1024 * 1024))
                 }
-
+                
                 defer {
                     inputStream.close()
                     do {
@@ -737,6 +737,10 @@ class FilenCrypto {
             let chunkSize = 1024 * 1024
             let offset = UInt64(index * chunkSize)
             
+            if (input.isFileURL == false || output.isFileURL == false) {
+                throw NSError(domain: "streamEncryptData", code: 1, userInfo: ["description": "input or ouput is not a file url"])
+            }
+            
             guard let keyData = key.data(using: .utf8) else {
                 throw NSError(domain: "streamEncryptData", code: 1, userInfo: nil)
             }
@@ -938,6 +942,32 @@ class FilenCrypto {
                 }
             } catch {
                 print("[streamEncryptData] error:", error)
+                switch error {
+                        case let e as CocoaError:
+                                print("CocoaError [\(e.code)]: \(e.localizedDescription)")
+                                if let err = e.underlying {
+                                    print(err.localizedDescription)
+                                }
+                                if let path = e.filePath {
+                                    print("File path: \(path)")
+                                }
+                                if let url = e.url {
+                                    print("URL: \(url)")
+                                }
+                                if let encoding = e.stringEncoding {
+                                    print("String encoding: \(encoding)")
+                                }
+                        case let e as NSError:
+                            print("NSError: \(e)")
+                            if let reason = e.localizedFailureReason {
+                                print("Reason: \(reason)")
+                            }
+                            print("Domain: \(e.domain)")
+                            print("Code: \(e.code)")
+                            print("User Info: \(e.userInfo)")
+                        default:
+                            print("other error")
+                        }
                 
                 throw NSError(domain: "streamEncryptData", code: 87, userInfo: nil)
             }

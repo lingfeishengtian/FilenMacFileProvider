@@ -77,7 +77,7 @@ class FileProviderItem: NSObject, NSFileProviderItem {
   
   var contentType: UTType {
           return (self.item.type == .folder) ?
-              .folder :
+        (UTType(tag: FileProviderUtils.shared.fileExtension(from: self.item.name) ?? "", tagClass: .filenameExtension, conformingTo: .package) ?? .folder) :
           (UTType(filenameExtension: FileProviderUtils.shared.fileExtension(from: self.item.name) ?? "") ?? .content)
   }
   
