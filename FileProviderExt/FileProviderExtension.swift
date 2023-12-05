@@ -691,7 +691,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         )
     }
     
-    func importDocument(at fileURL: URL, toParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier, with filename: String, creationDate: Date? = nil, progress: Progress = Progress(), size: NSNumber? = nil, type: String? = nil) async throws -> NSFileProviderItem {
+    func importDocument(at fileURL: URL, toParentItemIdentifier parentItemIdentifier: NSFileProviderItemIdentifier, with filename: String, creationDate: Date? = nil, progress: Progress = Progress(), size: NSNumber? = nil) async throws -> NSFileProviderItem {
         guard let parentJSON = FileProviderUtils.shared.getItemFromUUID(uuid: parentItemIdentifier.rawValue) else {
             throw NSFileProviderError(.noSuchItem)
         }
@@ -740,8 +740,7 @@ class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     uuid: result.uuid,
                     parent: parentJSON.uuid,
                     name: result.name,
-                    //type: ((type ?? result.type) == "folder") ? .folder : .file,
-                    type: .folder,
+                    type: (result.type) == "folder" ? .folder : .file,
                     mime: result.mime,
                     size: result.size,
                     timestamp: result.timestamp,

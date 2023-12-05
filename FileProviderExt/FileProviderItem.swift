@@ -45,7 +45,7 @@ class FileProviderItem: NSObject, NSFileProviderItem {
                    .allowsReading,
                    .allowsDeleting,
                    .allowsRenaming,
-                   .allowsReparenting]
+                   .allowsReparenting ]
       }
   }
     
