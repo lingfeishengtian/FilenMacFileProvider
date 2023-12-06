@@ -778,16 +778,11 @@ class FileProviderUtils {
         return result
     }
     
-    var bucket = ""
-    var region = ""
     let uploadSemaphore = Semaphore(max: 15)
     func uploadFile (url: String, parent: String, with name: String? = nil, progress: Progress = Progress()) async throws -> ItemJSON {
         if (!FileManager.default.fileExists(atPath: url)) {
             throw NSFileProviderError(.noSuchItem)
         }
-        
-        bucket = ""
-        region = ""
         
         guard let masterKeys = self.masterKeys(), let lastMasterKey = masterKeys.last else {
             throw NSFileProviderError(.notAuthenticated)
@@ -842,13 +837,17 @@ class FileProviderUtils {
         let metadata = try FilenCrypto.shared.encryptMetadata(metadata: metadataJSONString, key: lastMasterKey)
         
         progress.totalUnitCount = Int64(fileChunks)
+        let bucket = UnsafeMutablePointer<String>.allocate(capacity: 1)
+        bucket.initialize(to: "")
+        let region = UnsafeMutablePointer<String>.allocate(capacity: 1)
+        region.initialize(to: "")
         
         let localSemaphore = Semaphore(max: 15)
         for index in 0..<fileChunks {
             try await uploadSemaphore.acquire()
             try await localSemaphore.acquire()
             
-            Task {
+            let task = Task {
                 defer {
                     uploadSemaphore.release()
                     localSemaphore.release()
@@ -862,8 +861,8 @@ class FileProviderUtils {
                         print("finished \(index)")
                         if (result.bucket.count > 0 && result.region.count > 0) {
                             //await uploadFileResult.set(bucket: result.bucket, region: result.region)
-                            self.bucket = result.bucket
-                            self.region = result.region
+                            bucket.pointee = result.bucket
+                            region.pointee = result.region
                         }
                         success = true
                     }catch {
@@ -872,6 +871,7 @@ class FileProviderUtils {
                         try await Task.sleep(nanoseconds: 100 * 1_000_000)
                     }
                 }
+                return ("", "")
             }
         }
         
@@ -915,8 +915,8 @@ class FileProviderUtils {
             lastModified: lastModifiedInt,
             key: key,
             chunks: done.data!.chunks,
-            region: region,
-            bucket: bucket,
+            region: region.pointee,
+            bucket: bucket.pointee,
             version: 2
         )
     }
@@ -1361,7 +1361,7 @@ class FileProviderUtils {
         let _ = try FilenCrypto.shared.streamDecryptData(input: downloadedFileURL, output: destinationURL, key: key, version: version, index: index, shouldClear: false)
     }
     
-    let downloadSemaphore = Semaphore(max: 30)
+    let downloadSemaphore = Semaphore(max: 15)
     func downloadFile (uuid: String, url: String, maxChunks: Int, progress: Progress = Progress(), customJSON: ItemJSON? = nil) async throws -> (didDownload: Bool, url: String) {
         if (maxChunks <= 0) {
             return (didDownload: false, url: "")
@@ -1411,7 +1411,7 @@ class FileProviderUtils {
         }
         try "".write(to: tempFileURL, atomically: true, encoding: .utf8)
         // first get first download
-        let localSemaphore = Semaphore(max: 30)
+        let localSemaphore = Semaphore(max: 15)
         for index in 0..<chunksToDownload  {
             try await downloadSemaphore.acquire()
             try await localSemaphore.acquire()
@@ -1437,7 +1437,7 @@ class FileProviderUtils {
                         progress.completedUnitCount = Int64(index + 1)
                         success = true
                     }catch {
-                        print("Error at index \(index), retrying")
+                        print("Error at index \(index) for file \(itemJSON.name), retrying")
                         print(error)
                         try await Task.sleep(nanoseconds: 100 * 1_000_000)
                     }
