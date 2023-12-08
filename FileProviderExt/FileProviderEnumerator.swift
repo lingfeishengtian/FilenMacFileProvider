@@ -77,7 +77,7 @@ class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
             
             return FileProviderItem(
                 identifier: FileProviderUtils.shared.getIdentifierFromUUID(id: folder.uuid),
-                parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: self.identifier.rawValue),
+                parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: folder.parent),
                 item: Item(
                     uuid: folder.uuid,
                     parent: folder.parent,
@@ -161,7 +161,7 @@ class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
             
             return FileProviderItem(
                 identifier: FileProviderUtils.shared.getIdentifierFromUUID(id: file.uuid),
-                parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: self.identifier.rawValue),
+                parentIdentifier: FileProviderUtils.shared.getIdentifierFromUUID(id: file.parent),
                 item: Item(
                     uuid: file.uuid,
                     parent: file.parent,
@@ -228,6 +228,7 @@ class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
                 var didEnumerate = false
                 for parentIdentifier in FileProviderUtils.folderUpdateQueue + [NSFileProviderItemIdentifier(rootFolderUUID)]{
                     let parent = parentIdentifier.rawValue
+                    var toProcess = [FileProviderItem]()
                     var kids = try FileProviderUtils.shared.getListOfItemsWithParent(uuid: parent)
                     kids.removeAll(where: { $0.uuid == rootFolderUUID })
                     
@@ -247,34 +248,35 @@ class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
                     if await FileProviderEnumerator.parseTempJSON(tempJSONFileURL: tempJSONFileURL, errorHandler: {
                         // do something
                     }, handleFile: { file in
+                        let processed = try self.processFile(file: file, masterKeys: masterKeys)
                         if let child = kids.first(where: { $0.uuid == file.uuid }) {
                             kids.removeAll(where: { $0.uuid == file.uuid })
                             
-                            if (child.timestamp == file.timestamp) {
+                            if (child.timestamp == file.timestamp && processed.filename == child.name) {
+                                print("skipping \(processed.filename)")
                                 return false
                             }
                         }
-                        let processed = try self.processFile(file: file, masterKeys: masterKeys)
                         print("processing \(processed.filename)")
                         if (processed.item.name.count > 0) {
-                            observer.didUpdate([processed])
+                            toProcess.append(processed)
                             
                             return true
                         }
                         return false
                     }, handleFolder: { folder in
+                        let processed = try self.processFolder(folder: folder, masterKeys: masterKeys)
                         if let child = kids.first(where: { $0.uuid == folder.uuid }) {
                             kids.removeAll(where: { $0.uuid == folder.uuid })
                             
-                            if (child.timestamp == folder.timestamp) {
+                            if (child.timestamp == folder.timestamp && processed.filename == child.name) {
                                 return false
                             }
                         }
-                        let processed = try self.processFolder(folder: folder, masterKeys: masterKeys)
                         print("processing \(processed.filename)")
                         
                         if (processed.item.name.count > 0) {
-                            observer.didUpdate([processed])
+                            toProcess.append(processed)
                             
                             return true
                         }
@@ -288,6 +290,7 @@ class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
                         try FileProviderUtils.shared.openDb().run("DELETE FROM items WHERE uuid = ?", [kid.uuid])
                     }
                     
+                    observer.didUpdate(toProcess)
                     observer.didDeleteItems(withIdentifiers: kids.map({ FileProviderUtils.shared.getIdentifierFromUUID(id: $0.uuid) }))
                 }
                 
