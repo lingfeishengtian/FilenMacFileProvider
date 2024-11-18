@@ -7,3 +7,9 @@ Integrate Filen with the Mac Finder app.
 - .playground, folders that imitate files, and certain types of hidden files are confusing type identifiers and are handled as a special case, however it is not reliable. I **strongly** warn against using FilenMacFileProvider as a directory to work in for coding projects. To backup coding projects, please compress the folder before transferring into the file provider.
 
 - Upload speed is limited around 15 MB/s (not a software cap) due to encryption speeds of the files. This is a tradeoff made for better security.
+
+## Affiliation
+
+I am not affiliated with Filen in any way. Please do not bother Filen if you experience bugs within this application.
+
+Furthermore, I am not responsible for data loss or corruption you may encounter, however, please report these bugs to the issues page.
