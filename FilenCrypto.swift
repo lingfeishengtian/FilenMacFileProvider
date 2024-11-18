@@ -28,6 +28,408 @@ class FilenCrypto {
         OpenSSL_add_all_digests()
     }
     
+    func streamDecryptData (input: URL, output: URL, key: String, version: Int) throws -> URL {
+        try autoreleasepool {
+            guard let keyData = key.data(using: .utf8) else {
+                throw NSError(domain: "streamDecryptData", code: 1, userInfo: nil)
+            }
+            
+            if !FileManager.default.fileExists(atPath: input.path) {
+                throw NSError(domain: "streamDecryptData", code: 2, userInfo: nil)
+            }
+            
+            if FileManager.default.fileExists(atPath: output.path) {
+                try FileManager.default.removeItem(atPath: output.path)
+            }
+            
+            let inputHandle = try FileHandle(forReadingFrom: input)
+            
+            defer {
+                do {
+                    try inputHandle.close()
+                } catch {
+                    print("[streamDecryptData:defer] error:", error)
+                }
+            }
+            
+            let inputSize = Int(inputHandle.seekToEndOfFile())
+            
+            if inputSize < (version == 1 ? 16 : 12) {
+                throw NSError(domain: "streamDecryptData", code: 9992, userInfo: nil)
+            }
+            
+            if version == 1 {
+                let firstData = inputHandle.readData(ofLength: 16)
+                
+                try inputHandle.close()
+                
+                let asciiString = String(data: firstData, encoding: .ascii)
+                let base64String = firstData.base64EncodedString()
+                let binaryString = self.convertUInt8ArrayToBinaryString([UInt8](firstData))
+                var newInput = input
+                var needsConvert = true
+                var isCBC = true
+                
+                guard let asciiString = asciiString else {
+                    throw NSError(domain: "streamDecryptData", code: 9993, userInfo: nil)
+                }
+                
+                if asciiString.starts(with: "Salted_") || base64String.starts(with: "Salted_") || binaryString.starts(with: "Salted_") {
+                    newInput = input
+                    needsConvert = false
+                }
+                
+                if asciiString.starts(with: "Salted_") || base64String.starts(with: "U2FsdGVk") || binaryString.starts(with: "U2FsdGVk") || asciiString.starts(with: "U2FsdGVk") || binaryString.starts(with: "Salted_") || base64String.starts(with: "Salted_") {
+                    isCBC = false
+                }
+                
+                if needsConvert && !isCBC {
+                    let tempFileURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString.lowercased(), isDirectory: false)
+                    
+                    newInput = try FilenUtils.shared.streamDecodeFileToBase64(input: input, output: tempFileURL)
+                }
+                
+                defer {
+                    if input.path != newInput.path {
+                        if FileManager.default.fileExists(atPath: newInput.path) {
+                            do {
+                                try FileManager.default.removeItem(atPath: newInput.path)
+                            } catch {
+                                print("[streamDecryptData:defer] error:", error)
+                            }
+                        }
+                    }
+                }
+                
+                guard let inputStream = InputStream(url: newInput), let outputStream = OutputStream(url: output, append: false) else {
+                    throw NSError(domain: "streamDecryptData", code: 9990, userInfo: nil)
+                }
+                
+                let newInputHandle = try FileHandle(forReadingFrom: newInput)
+                
+                inputStream.open()
+                outputStream.open()
+                
+                defer {
+                    do {
+                        try newInputHandle.close()
+                        
+                        inputStream.close()
+                        outputStream.close()
+                    } catch {
+                        print("[streamDecryptData] error:", error)
+                    }
+                }
+                
+                let newInputSize = Int(newInputHandle.seekToEndOfFile())
+                let bufferSize = 1024
+                var buffer = [UInt8](repeating: 0, count: bufferSize)
+                
+                if !isCBC {
+                    newInputHandle.seek(toFileOffset: 8)
+                    
+                    let saltData = newInputHandle.readData(ofLength: 8)
+                    
+                    try newInputHandle.close()
+                    
+                    var keyDerived = [UInt8](repeating: 0, count: 32)
+                    var ivDerived = [UInt8](repeating: 0, count: 16)
+                    
+                    guard keyData.withUnsafeBytes ({ keyPtr in
+                        saltData.withUnsafeBytes({ saltPtr in
+                            EVP_BytesToKey(
+                                EVP_aes_256_cbc(),
+                                EVP_md5(),
+                                saltPtr.bindMemory(to: UInt8.self).baseAddress,
+                                keyPtr.bindMemory(to: UInt8.self).baseAddress,
+                                Int32(keyData.count),
+                                1,
+                                &keyDerived,
+                                &ivDerived
+                            )
+                        })
+                    }) > 0 else {
+                        throw NSError(domain: "streamDecryptData", code: 20, userInfo: nil)
+                    }
+                    
+                    guard let ctx = EVP_CIPHER_CTX_new() else {
+                        throw NSError(domain: "streamDecryptData", code: 21, userInfo: nil)
+                    }
+                    
+                    defer {
+                        EVP_CIPHER_CTX_free(ctx)
+                    }
+                    
+                    var out = [UInt8](repeating: 0, count: newInputSize)
+                    var outLength: Int32 = 0
+                    
+                    guard EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), nil, &keyDerived, &ivDerived) == 1 else {
+                        throw NSError(domain: "streamDecryptData", code: 22, userInfo: nil)
+                    }
+                    
+                    guard EVP_CIPHER_CTX_set_padding(ctx, 0) == 1 else {
+                        throw NSError(domain: "streamDecryptData", code: 27, userInfo: nil)
+                    }
+                    
+                    let bytesToSkipAtBeginning = 16
+                    let bytesToSkipAtEnd = 0
+                    let bytesToReadTotal = inputSize - bytesToSkipAtBeginning - bytesToSkipAtEnd
+                    var bytesReadTotal = 0
+                    
+                    if bytesToSkipAtBeginning > 0 {
+                        autoreleasepool {
+                            _ = inputStream.read(&buffer, maxLength: bytesToSkipAtBeginning)
+                        }
+                    }
+                    
+                    while inputStream.hasBytesAvailable && bytesReadTotal < bytesToReadTotal {
+                        let bytesReadThisIteration = min(bufferSize, bytesToReadTotal - bytesReadTotal)
+                        let bytesRead = inputStream.read(&buffer, maxLength: bytesReadThisIteration)
+                        
+                        if bytesRead == 0 {
+                            break
+                        }
+                        
+                        bytesReadTotal += bytesRead
+                        
+                        let chunk = buffer[0..<bytesRead]
+                        
+                        guard chunk.withUnsafeBytes({ chunkPtr in
+                            EVP_DecryptUpdate(
+                                ctx,
+                                &out,
+                                &outLength,
+                                chunkPtr.bindMemory(to: UInt8.self).baseAddress,
+                                Int32(chunk.count)
+                            )
+                        }) == 1 else {
+                            throw NSError(domain: "streamDecryptData", code: 14, userInfo: nil)
+                        }
+                        
+                        let unpadded = self.removePKCS7Padding(from: out)
+                        
+                        outputStream.write(unpadded, maxLength: unpadded.count)
+                    }
+                    
+                    var finalOutLength: Int32 = 0
+                    
+                    if EVP_DecryptFinal_ex(ctx, &out, &finalOutLength) <= 0 {
+                        throw NSError(domain: "streamDecryptData", code: 15, userInfo: nil)
+                    }
+                    
+                    if finalOutLength > 0 {
+                        let unpadded = self.removePKCS7Padding(from: out)
+                        
+                        if unpadded.count > 0 {
+                            outputStream.write(unpadded, maxLength: unpadded.count)
+                        }
+                    }
+                    
+                    out = []
+                    buffer = []
+                    
+                    inputStream.close()
+                    outputStream.close()
+                    
+                    return output
+                } else {
+                    try newInputHandle.close()
+                    
+                    guard let ctx = EVP_CIPHER_CTX_new() else {
+                        throw NSError(domain: "streamDecryptData", code: 21, userInfo: nil)
+                    }
+                    
+                    defer {
+                        EVP_CIPHER_CTX_free(ctx)
+                    }
+                    
+                    var out = [UInt8](repeating: 0, count: newInputSize)
+                    var outLength: Int32 = 0
+                    
+                    guard keyData.withUnsafeBytes({ keyPtr in
+                        self.sliceData(data: keyData, start: 0, end: 16).withUnsafeBytes({ ivPtr in
+                            EVP_DecryptInit_ex(
+                                ctx,
+                                EVP_aes_256_cbc(),
+                                nil,
+                                keyPtr.bindMemory(to: UInt8.self).baseAddress,
+                                ivPtr.bindMemory(to: UInt8.self).baseAddress
+                            )
+                        })
+                    }) == 1 else {
+                        throw NSError(domain: "streamDecryptData", code: 22, userInfo: nil)
+                    }
+                    
+                    while inputStream.hasBytesAvailable {
+                        let bytesRead = inputStream.read(&buffer, maxLength: bufferSize)
+                        
+                        if bytesRead > 0 {
+                            let chunk = buffer[0..<bytesRead]
+                            
+                            guard chunk.withUnsafeBytes({ chunkPtr in
+                                EVP_DecryptUpdate(
+                                    ctx,
+                                    &out,
+                                    &outLength,
+                                    chunkPtr.bindMemory(to: UInt8.self).baseAddress,
+                                    Int32(chunk.count)
+                                )
+                            }) == 1 else {
+                                throw NSError(domain: "streamDecryptData", code: 14, userInfo: nil)
+                            }
+                            
+                            outputStream.write(out, maxLength: Int(outLength))
+                        }
+                    }
+                    
+                    var finalOutLength: Int32 = 0
+                    
+                    if EVP_DecryptFinal_ex(ctx, &out, &finalOutLength) <= 0 {
+                        throw NSError(domain: "streamDecryptData", code: 15, userInfo: nil)
+                    }
+                    
+                    if finalOutLength > 0 {
+                        outputStream.write(out, maxLength: Int(finalOutLength))
+                    }
+                    
+                    out = []
+                    buffer = []
+                    
+                    inputStream.close()
+                    outputStream.close()
+                    
+                    return output
+                }
+            } else {
+                inputHandle.seek(toFileOffset: 0)
+                
+                let iv = inputHandle.readData(ofLength: 12)
+                
+                inputHandle.seek(toFileOffset: UInt64(inputSize - 16))
+                
+                var authTag = inputHandle.readData(ofLength: 16)
+                
+                try inputHandle.close()
+                
+                guard let inputStream = InputStream(url: input), let outputStream = OutputStream(url: output, append: false) else {
+                    throw NSError(domain: "streamDecryptData", code: 9998, userInfo: nil)
+                }
+                
+                inputStream.open()
+                outputStream.open()
+                
+                defer {
+                    inputStream.close()
+                    outputStream.close()
+                }
+                
+                guard let ctx = EVP_CIPHER_CTX_new() else {
+                    throw NSError(domain: "streamDecryptData", code: 9, userInfo: nil)
+                }
+                
+                defer {
+                    EVP_CIPHER_CTX_free(ctx)
+                }
+                
+                guard EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nil, nil, nil) == 1 else {
+                    throw NSError(domain: "streamDecryptData", code: 10, userInfo: nil)
+                }
+                
+                guard EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 12, nil) == 1 else {
+                    throw NSError(domain: "streamDecryptData", code: 11, userInfo: nil)
+                }
+                
+                guard keyData.withUnsafeBytes({ keyPtr in
+                    iv.withUnsafeBytes({ ivPtr in
+                        EVP_DecryptInit_ex(
+                            ctx,
+                            nil,
+                            nil,
+                            keyPtr.bindMemory(to: UInt8.self).baseAddress,
+                            ivPtr.bindMemory(to: UInt8.self).baseAddress
+                        )
+                    })
+                }) == 1 else {
+                    throw NSError(domain: "streamDecryptData", code: 12, userInfo: nil)
+                }
+                
+                let authTagCount = Int32(authTag.count)
+                
+                guard authTag.withUnsafeMutableBytes({ tagPtr in
+                    EVP_CIPHER_CTX_ctrl(
+                        ctx,
+                        EVP_CTRL_GCM_SET_TAG,
+                        authTagCount,
+                        tagPtr.bindMemory(to: UInt8.self).baseAddress
+                    )
+                }) == 1 else {
+                    throw NSError(domain: "streamDecryptData", code: 13, userInfo: nil)
+                }
+                
+                let bufferSize = 1024
+                var buffer = [UInt8](repeating: 0, count: bufferSize)
+                var out = [UInt8](repeating: 0, count: bufferSize + 16)
+                var outLength: Int32 = 0
+                let bytesToSkipAtBeginning = 12
+                let bytesToSkipAtEnd = 16
+                let bytesToReadTotal = inputSize - bytesToSkipAtBeginning - bytesToSkipAtEnd
+                var bytesReadTotal = 0
+                
+                if bytesToSkipAtBeginning > 0 {
+                    autoreleasepool {
+                        _ = inputStream.read(&buffer, maxLength: bytesToSkipAtBeginning)
+                    }
+                }
+                
+                while inputStream.hasBytesAvailable && bytesReadTotal < bytesToReadTotal {
+                    let bytesReadThisIteration = min(bufferSize, bytesToReadTotal - bytesReadTotal)
+                    let bytesRead = inputStream.read(&buffer, maxLength: bytesReadThisIteration)
+                    
+                    if bytesRead == 0 {
+                        break
+                    }
+                    
+                    bytesReadTotal += bytesRead
+                    
+                    let chunk = buffer[0..<bytesRead]
+                    
+                    guard chunk.withUnsafeBytes({ chunkPtr in
+                        EVP_DecryptUpdate(
+                            ctx,
+                            &out,
+                            &outLength,
+                            chunkPtr.bindMemory(to: UInt8.self).baseAddress,
+                            Int32(chunk.count)
+                        )
+                    }) == 1 else {
+                        throw NSError(domain: "streamDecryptData", code: 14, userInfo: nil)
+                    }
+                    
+                    outputStream.write(out, maxLength: Int(outLength))
+                }
+                
+                var finalOutLength: Int32 = 0
+                
+                if EVP_DecryptFinal_ex(ctx, &out, &finalOutLength) <= 0 {
+                    throw NSError(domain: "Decryption failed due to tag mismatch", code: 15, userInfo: nil)
+                }
+                
+                if finalOutLength > 0 {
+                    outputStream.write(out, maxLength: Int(finalOutLength))
+                }
+                
+                out = []
+                buffer = []
+                
+                inputStream.close()
+                outputStream.close()
+                
+                return output
+            }
+        }
+    }
+    
+    
     func decryptFolderLinkKey (metadata: String, masterKeys: [String]) throws -> String? {
         autoreleasepool {
             var key: String?

@@ -1,4 +1,0 @@
-${PODS_ROOT}/Target Support Files/Pods-FilenMacFileProvider/Pods-FilenMacFileProvider-frameworks.sh
-${BUILT_PRODUCTS_DIR}/Alamofire/Alamofire.framework
-${BUILT_PRODUCTS_DIR}/SQLite.swift/SQLite.framework
-${PODS_XCFRAMEWORKS_BUILD_DIR}/OpenSSL-Universal/OpenSSL.framework/OpenSSL

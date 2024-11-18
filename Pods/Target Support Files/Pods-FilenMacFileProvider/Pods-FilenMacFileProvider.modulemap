@@ -1,6 +1,0 @@
-framework module Pods_FilenMacFileProvider {
-  umbrella header "Pods-FilenMacFileProvider-umbrella.h"
-
-  export *
-  module * { export * }
-}
